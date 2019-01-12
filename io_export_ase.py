@@ -186,17 +186,17 @@ class cSubMaterials:
         self.ambient = '\t'.join( [aseFloat( x ) for x in [0.0, 0.0, 0.0]] )
         self.diffuse = '\t'.join( [aseFloat( x ) for x in slot.diffuse_color] )
         self.specular = '\t'.join( [aseFloat( x ) for x in slot.specular_color] )
-        self.shine = aseFloat( slot.specular_hardness / 511 )
+        self.shine = aseFloat( 1.0 / slot.roughness )
         self.shinestrength = aseFloat( slot.specular_intensity )
-        self.transparency = aseFloat( slot.translucency * slot.alpha )
+        self.transparency = aseFloat( 0.0 )
         self.wiresize = aseFloat( 1.0 )
-        self.shading = str( material_list[0].specular_shader ).capitalize()
+        self.shading = 'Blinn'
         self.xpfalloff = aseFloat( 0.0 )
         self.xptype = 'Filter'
         self.falloff = 'In'
         self.soften = False
         self.submtls = []
-        self.selfillum = aseFloat( material_list[0].emit )
+        self.selfillum = aseFloat( 0.0 )
 
         if ( len( material_list ) > 1 ):
             # Build SubMaterials
@@ -240,20 +240,20 @@ class cMaterial:
         self.ambient = '\t'.join( [aseFloat( x ) for x in [0.0, 0.0, 0.0]] )
         self.diffuse = '\t'.join( [aseFloat( x ) for x in slot.diffuse_color] )
         self.specular = '\t'.join( [aseFloat( x ) for x in slot.specular_color] )
-        self.shine = aseFloat( slot.specular_hardness / 511 )
+        self.shine = aseFloat( 1.0 / slot.roughness )
         self.shinestrength = aseFloat( slot.specular_intensity )
-        self.transparency = aseFloat( slot.translucency * slot.alpha )
+        self.transparency = aseFloat( 0.0 )
         self.wiresize = aseFloat( 1.0 )
 
         # Material Definition
-        self.shading = str( slot.specular_shader ).capitalize()
+        self.shading = 'Blinn'
         self.xpfalloff = aseFloat( 0.0 )
         self.xptype = 'Filter'
         self.falloff = 'In'
         self.soften = False
         self.diffusemap = cDiffusemap( slot )
         self.submtls = []
-        self.selfillum = aseFloat( slot.emit )
+        self.selfillum = aseFloat( 0.0 )
         self.dump = ("\n\t\t*MATERIAL_NAME \"{0}\""+
                     "\n\t\t*MATERIAL_CLASS \"{1}\""+
                     "\n\t\t*MATERIAL_AMBIENT {2}"+
@@ -864,20 +864,20 @@ class ExportAse( bpy.types.Operator, ExportHelper ):
         layout = self.layout
 
         box = layout.box()
-        box.label( 'Essentials:' )
+        box.label( text = 'Essentials:' )
         box.prop( self, 'option_apply_stack' )
         box.prop( self, 'option_separate_by_material' )
         box.prop( self, 'option_triangulate' )
         box.prop( self, 'option_normals' )
         box.prop( self, 'option_remove_doubles' )
-        box.label( "Transformations:" )
+        box.label( text = "Transformations:" )
         box.prop( self, 'option_apply_scale' )
         box.prop( self, 'option_apply_rotation' )
         box.prop( self, 'option_apply_location' )
-        box.label( "Materials:" )
+        box.label( text = "Materials:" )
         box.prop( self, 'option_submaterials' )
         box.prop( self, 'option_allowmultimats' )
-        box.label( "Advanced:" )
+        box.label( text = "Advanced:" )
         box.prop( self, 'option_scale' )
         box.prop( self, 'option_smoothinggroups' )
 
@@ -945,9 +945,9 @@ class ExportAse( bpy.types.Operator, ExportHelper ):
         for object in bpy.context.selected_objects:
             if object.type == 'MESH':
                 bpy.ops.object.select_all( action = 'DESELECT' )
-                bpy.context.scene.objects.active = object
+                bpy.context.view_layer.objects.active = object
                 objects.append(object)
-                object.select = True
+                object.select_set( state = True)
                 bpy.ops.object.duplicate()
                 dup = bpy.context.active_object
                 dup.name = "temp"
@@ -957,7 +957,7 @@ class ExportAse( bpy.types.Operator, ExportHelper ):
                 bup_mesh_names[dup] = object.data.name
             # Apply modifiers
             if self.option_apply_stack:
-                bpy.context.scene.objects.active = object
+                bpy.context.view_layer.objects.active = object
                 while (len(object.modifiers)):
                     bpy.ops.object.modifier_apply(apply_as='DATA', modifier = object.modifiers[0].name)
 
@@ -965,8 +965,8 @@ class ExportAse( bpy.types.Operator, ExportHelper ):
         bpy.ops.object.select_all( action = 'DESELECT' )
         if self.option_separate_by_material:
             for object in objects:
-                bpy.context.scene.objects.active = object
-                object.select = True
+                bpy.context.view_layer.objects.active = object
+                object.select_set( state = True)
                 bpy.ops.object.mode_set( mode = 'EDIT' )
                 bpy.ops.mesh.separate( type = 'MATERIAL' )
             for object in bpy.context.selected_objects:
@@ -979,8 +979,8 @@ class ExportAse( bpy.types.Operator, ExportHelper ):
         aseMaterials = str( cMaterials(objects) )
 
         for object in objects:
-            bpy.context.scene.objects.active = object
-            object.select = True
+            bpy.context.view_layer.objects.active = object
+            object.select_set( state = True)
 
             # Apply options
             bpy.ops.object.mode_set( mode = 'EDIT' )
@@ -1009,16 +1009,16 @@ class ExportAse( bpy.types.Operator, ExportHelper ):
         bpy.ops.object.mode_set( mode = 'OBJECT' )
         bpy.ops.object.select_all(action='DESELECT')
         for object in objects:
-            bpy.context.scene.objects.active = object
-            object.select = True
+            bpy.context.view_layer.objects.active = object
+            object.select_set( state = True)
             bpy.ops.object.delete()
 
         # Restore scene from duplicates
         for object in bup_objs:
             object.name = bup_obj_names[object]
             object.data.name = bup_mesh_names[object]
-            bpy.context.scene.objects.active = object
-            object.select = True
+            bpy.context.view_layer.objects.active = object
+            object.select_set( state = True)
 
         aseModel = ''
         aseModel += aseHeader
