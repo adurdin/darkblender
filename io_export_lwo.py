@@ -58,7 +58,7 @@ bl_info = {
 	"name": "Export LightWave(.lwo)",
 	"author": "Anthony D'Agostino (Scorpius) and Gert De Roost",
 	"version": (2, 3, 2),
-	"blender": (2, 69, 0),
+	"blender": (2, 80, 0),
 	"location": "File > Export",
 	"description": "Lightwave .lwo export",
 	"warning": "",
@@ -1188,18 +1188,18 @@ def menu_func(self, context):
 	self.layout.operator(LwoExport.bl_idname, text="Lightwave (.lwo)")
 
 def register():
-	bpy.app.handlers.scene_update_post.append(sceneupdate_handler)
+	bpy.app.handlers.depsgraph_update_post.append(sceneupdate_handler)
 
-	bpy.utils.register_module(__name__)
+	bpy.utils.register_class(LwoExport)
 
-	bpy.types.INFO_MT_file_export.append(menu_func)
+	bpy.types.TOPBAR_MT_file_export.append(menu_func)
 
 def unregister():
-	bpy.app.handlers.scene_update_post.remove(sceneupdate_handler)
+	bpy.app.handlers.depsgraph_update_post.remove(sceneupdate_handler)
 
-	bpy.utils.unregister_module(__name__)
+	bpy.utils.register_class(LwoExport)
 
-	bpy.types.INFO_MT_file_export.remove(menu_func)
+	bpy.types.TOPBAR_MT_file_export.remove(menu_func)
 
 if __name__ == "__main__":
   register()

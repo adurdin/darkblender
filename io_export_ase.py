@@ -25,7 +25,7 @@ bl_info = {
     "name": "ASCII Scene Exporter",
     "author": "Richard Bartlett, MCampagnini",
     "version": ( 2, 5, 2 ),
-    "blender": ( 2, 7, 8 ),
+    "blender": ( 2, 80, 0 ),
     "api": 36079,
     "location": "File > Export > ASCII Scene Export(.ase)",
     "description": "ASCII Scene Export(.ase)",
@@ -1039,11 +1039,11 @@ def menu_func( self, context ):
 
 def register():
     bpy.utils.register_class( ExportAse )
-    bpy.types.INFO_MT_file_export.append( menu_func )
+    bpy.types.TOPBAR_MT_file_export.append( menu_func )
 
 def unregister():
     bpy.utils.unregister_class( ExportAse )
-    bpy.types.INFO_MT_file_export.remove( menu_func )
+    bpy.types.TOPBAR_MT_file_export.remove( menu_func )
 
 if __name__ == "__main__":
     register()
