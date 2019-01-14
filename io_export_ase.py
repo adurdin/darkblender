@@ -503,31 +503,35 @@ class cFacelist:
 class cUVdata:
     def __init__( self, object ):
         self.uvdata = ''
-        object.data.update( calc_tessface = True )
+        mesh = object.data
+        mesh.calc_loop_triangles()
         
-        if ( len( object.data.tessface_uv_textures ) == 0 ) or ( collisionObject( object ) > 0 ):
+        if ( len( mesh.uv_layers ) == 0 ) or ( collisionObject( object ) > 0 ):
             self.uvdata = "\n\t\t*MESH_NUMTVERTEX 0"
         else:
-            for channel in range ( len ( object.data.tessface_uv_textures ) ): #iterate over mapping channels
+            # For each UV layer
+            for uv_layer_num, uv_layer in enumerate( mesh.uv_layers ):
                 tvlist = []
                 tvdata = ''
                 tfdata = ''
-                for index, face in enumerate( object.data.tessfaces ):
-                    tfdata += "\n\t\t\t*MESH_TFACE {0}".format(index)
-                    for uvvert in [object.data.tessface_uv_textures[channel].data[face.index].uv1,
-                                   object.data.tessface_uv_textures[channel].data[face.index].uv2,
-                                   object.data.tessface_uv_textures[channel].data[face.index].uv3]:
-                        if uvvert not in tvlist:
+                # For each tri in the mesh
+                for tri_num, tri in enumerate( mesh.loop_triangles ):
+                    tfdata += "\n\t\t\t*MESH_TFACE {0}".format(tri_num)
+                    # For each index in the triangle loop (should be 3)
+                    for vert_index in tri.loops:
+                        # Look up corresponding UV data from the uv_layer array
+                        uvvert = uv_layer.data[vert_index].uv
+                        if uvvert not in tvlist: # TODO bad performance
                             tvlist.append( uvvert ) #only append vertices with unique uvs
                             tvdata += ("\n\t\t\t*MESH_TVERT {0}\t{1}\t{2}\t{3}"
                                       ).format(len(tvlist)-1,aseFloat(uvvert[0]),aseFloat(uvvert[1]),aseFloat(0.0))
                         tfdata += "\t" + str (tvlist.index(uvvert))
                 tvdata = ("\n\t\t*MESH_NUMTVERTEX " + str(len(tvlist)) +
                           "\n\t\t*MESH_TVERTLIST {" + tvdata + "\n\t\t}")
-                tfdata = ("\n\t\t*MESH_NUMTVFACES " + str(len(object.data.uv_texture_stencil.data)) +
+                tfdata = ("\n\t\t*MESH_NUMTVFACES " + str(len(mesh.uv_layer_stencil.data)) +
                           "\n\t\t*MESH_TFACELIST {" + tfdata + "\n\t\t}")
-                if channel > 0:
-                    tvdata = "\n\t\t*MESH_MAPPINGCHANNEL " + str(channel+1) + " {" + tvdata.replace("\n","\n\t")
+                if uv_layer_num > 0:
+                    tvdata = "\n\t\t*MESH_MAPPINGCHANNEL " + str(uv_layer_num + 1) + " {" + tvdata.replace("\n","\n\t")
                     tfdata = tfdata.replace("\n","\n\t") + "\n\t\t}"
                 self.uvdata = self.uvdata + tvdata + tfdata
 
