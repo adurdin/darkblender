@@ -632,7 +632,7 @@ def defineSmoothing( self, object ):
     seam_edge_list = []
     sharp_edge_list = []
 
-    _mode = bpy.context.scene.objects.active.mode
+    _mode = bpy.context.active_object.mode
     bpy.ops.object.mode_set( mode = 'EDIT' )
     bpy.ops.mesh.select_all( action = 'DESELECT' )
     setSelMode( 'EDGE' )
@@ -761,10 +761,10 @@ def getSelectedFaces( self, index = False ):
     bpy.ops.object.editmode_toggle()
     bpy.ops.object.editmode_toggle()
 
-    _mode = bpy.context.scene.objects.active.mode
+    _mode = bpy.context.active_object.mode
     bpy.ops.object.mode_set( mode = 'EDIT' )
 
-    object = bpy.context.scene.objects.active
+    object = bpy.context.active_object
     for face in object.data.polygons:
         if face.select == True:
             if index == False:
