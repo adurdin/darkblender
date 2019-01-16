@@ -57,7 +57,7 @@ v5.5 format.
 bl_info = {
 	"name": "Export LightWave(.lwo)",
 	"author": "Anthony D'Agostino (Scorpius) and Gert De Roost",
-	"version": (2, 3, 2),
+	"version": (2, 8, 0),
 	"blender": (2, 80, 0),
 	"location": "File > Export",
 	"description": "Lightwave .lwo export",
@@ -119,7 +119,7 @@ class MessageOperator(bpy.types.Operator):
 		layout = self.layout
 		row = layout.row()
 		row.label(text = '', icon = "ERROR")
-		row.label("Error | This exporter requires a full python installation")
+		row.label(text="Error | This exporter requires a full python installation")
 
 
 class LwoExport(bpy.types.Operator, ExportHelper):
@@ -209,7 +209,7 @@ class LwoExport(bpy.types.Operator, ExportHelper):
 		layout = self.layout
 
 		box = layout.box()
-		box.label( 'Essentials:' )
+		box.label( text='Essentials:' )
 		box.prop( self, 'option_idtech' )
 		box.prop( self, 'option_applymod' )
 		box.prop( self, 'option_subd' )
@@ -217,11 +217,11 @@ class LwoExport(bpy.types.Operator, ExportHelper):
 		box.prop( self, 'option_normals' )
 		box.prop( self, 'option_remove_doubles' )
 		box.prop( self, 'option_smooth' )
-		box.label( "Transformations:" )
+		box.label( text="Transformations:" )
 		box.prop( self, 'option_apply_scale' )
 		box.prop( self, 'option_apply_rotation' )
 		box.prop( self, 'option_apply_location' )
-		box.label( "Advanced:" )
+		box.label( text="Advanced:" )
 		box.prop( self, 'option_scale' )
 		box.prop( self, 'option_batch')
 		if 'vertex_normal_list' in context.active_object:
@@ -270,8 +270,8 @@ class LwoExport(bpy.types.Operator, ExportHelper):
 				continue
 				
 			bpy.ops.object.select_all(action='DESELECT')
-			bpy.context.scene.objects.active = obj
-			obj.select = True
+			bpy.context.view_layer.objects.active = obj
+			obj.select_set(state=True)
 			bpy.ops.object.duplicate()
 			objdup = bpy.context.active_object
 			objdups.append(objdup)
@@ -436,8 +436,8 @@ class LwoExport(bpy.types.Operator, ExportHelper):
 			file.close()
 			
 			bpy.ops.object.select_all(action='DESELECT')
-			bpy.context.scene.objects.active = obj
-			obj.select = True
+			bpy.context.view_layer.objects.active = obj
+			obj.select_set(state=True)
 			bpy.ops.object.delete()
 			
 			if not(self.option_batch):
@@ -445,8 +445,8 @@ class LwoExport(bpy.types.Operator, ExportHelper):
 				break
 		
 		for obj in objects:
-			obj.select = True
-		bpy.context.scene.objects.active = actobj
+			obj.select_set(state=True)
+		bpy.context.view_layer.objects.active = actobj
 		
 		
 	# =======================================
