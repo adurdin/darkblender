@@ -501,12 +501,12 @@ class cFacelist:
     def __repr__( self ):
         return '''{{\n{0}\t\t}}'''.format( self.dump() )
 class cUVdata:
-    def __init__( self, object ):
+    def __init__( self, obj ):
         self.uvdata = ''
-        mesh = object.data
+        mesh = obj.data
         mesh.calc_loop_triangles()
         
-        if ( len( mesh.uv_layers ) == 0 ) or ( collisionObject( object ) > 0 ):
+        if ( len( mesh.uv_layers ) == 0 ) or ( collisionObject( obj ) > 0 ):
             self.uvdata = "\n\t\t*MESH_NUMTVERTEX 0"
         else:
             # For each UV layer
@@ -528,7 +528,7 @@ class cUVdata:
                         tfdata += "\t" + str (tvlist.index(uvvert))
                 tvdata = ("\n\t\t*MESH_NUMTVERTEX " + str(len(tvlist)) +
                           "\n\t\t*MESH_TVERTLIST {" + tvdata + "\n\t\t}")
-                tfdata = ("\n\t\t*MESH_NUMTVFACES " + str(len(mesh.uv_layer_stencil.data)) +
+                tfdata = ("\n\t\t*MESH_NUMTVFACES " + str(len(mesh.loop_triangles)) +
                           "\n\t\t*MESH_TFACELIST {" + tfdata + "\n\t\t}")
                 if uv_layer_num > 0:
                     tvdata = "\n\t\t*MESH_MAPPINGCHANNEL " + str(uv_layer_num + 1) + " {" + tvdata.replace("\n","\n\t")
