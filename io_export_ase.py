@@ -23,15 +23,13 @@
 # **********************************
 bl_info = {
     "name": "ASCII Scene Exporter",
-    "author": "Richard Bartlett, MCampagnini",
-    "version": ( 2, 5, 2 ),
+    "author": "Richard Bartlett, MCampagnini, The Dark Mod team",
+    "version": ( 2, 8, 0 ),
     "blender": ( 2, 80, 0 ),
     "api": 36079,
     "location": "File > Export > ASCII Scene Export(.ase)",
     "description": "ASCII Scene Export(.ase)",
     "warning": "",
-    "wiki_url": "https://github.com/DarklightGames/io_export_ase",
-    "tracker_url": "https://github.com/DarklightGames/io_export_ase/issues",
     "category": "Import-Export"
 }
 
@@ -389,23 +387,23 @@ class cNodeTM:
     def __repr__( self ):
         return self.dump
 class cMesh:
-    def __init__( self, object ):
+    def __init__( self, obj ):
         bpy.ops.mesh.reveal
         
-        self.uvdata = cUVdata( object )
+        self.uvdata = cUVdata( obj )
 
         self.timevalue = '0'
-        self.numvertex = len( object.data.vertices )
-        self.numfaces = len( object.data.polygons )
-        self.vertlist = cVertlist( object )
-        self.facelist = cFacelist( object )
+        self.numvertex = len( obj.data.vertices )
+        self.numfaces = len( obj.data.polygons )
+        self.vertlist = cVertlist( obj )
+        self.facelist = cFacelist( obj )
 
 
         # Vertex Paint
-        if len( object.data.vertex_colors ) > 0:
-            self.cvertlist = cCVertlist( object )
+        if len( obj.data.vertex_colors ) > 0:
+            self.cvertlist = cCVertlist( obj )
             self.numcvertex = self.cvertlist.length
-            self.numcvfaces = len( object.data.vertex_colors.data.polygons )
+            self.numcvfaces = len( obj.data.vertex_colors.data.polygons )
             self.cfacelist = cCFacelist( self.numcvfaces )
             # change them into strings now
             self.numcvertex = '\n\t\t*MESH_NUMCVERTEX {0}'.format( self.numcvertex )
@@ -418,7 +416,7 @@ class cMesh:
             self.numcvfaces = ''
             self.cfacelist = ''
 
-        self.normals = cNormallist( object )
+        self.normals = cNormallist( obj )
        
     def __repr__( self ):
         temp = '''\t*MESH {{\n\t\t*TIMEVALUE {0}\n\t\t*MESH_NUMVERTEX {1}\n\t\t*MESH_NUMFACES {2}\n\t\t*MESH_VERTEX_LIST {3}\n\t\t*MESH_FACE_LIST {4}{5}{6}{7}{8}{9}\n{10}\n\t}}'''.format( self.timevalue, self.numvertex, self.numfaces, self.vertlist, self.facelist, self.uvdata, self.numcvertex, self.cvertlist, self.numcvfaces, self.cfacelist, self.normals )
@@ -500,7 +498,10 @@ class cFacelist:
 
     def __repr__( self ):
         return '''{{\n{0}\t\t}}'''.format( self.dump() )
+
 class cUVdata:
+    "Representation of mesh UV coordinates"
+
     def __init__( self, obj ):
         self.uvdata = ''
         mesh = obj.data
@@ -537,23 +538,25 @@ class cUVdata:
 
     def __repr__( self ):
         return self.uvdata
+
 class cCVertlist:
-    def __init__( self, object ):
+    "Representation of mesh vertex colour information"
+
+    def __init__( self, obj ):
         self.vertlist = []
-        self.index = 0
+        index = 0
 
         # Blender 2.63+
         bpy.ops.object.mode_set( mode = 'OBJECT' )
-        object.data.calc_tessface()
+        mesh = obj.data
+        mesh.calc_loop_triangles()
 
-        for face in object.data.tessfaces:
-            temp = object.data.tessface_vertex_colors[0].data[face.index].color1
-            self.vertlist.append( cCVert( self.index, temp ) )
-            temp = object.data.tessface_vertex_colors[0].data[face.index].color2
-            self.vertlist.append( cCVert( self.index + 1, temp ) )
-            temp = object.data.tessface_vertex_colors[0].data[face.index].color3
-            self.vertlist.append( cCVert( self.index + 2, temp ) )
-            self.index += 3
+        # Look up vertex colors for loop triangle indices
+        for tri in mesh.loop_triangles:
+            for vert_index in tri.loops:
+                vcol = mesh.vertex_colors.active.data[vert_index].color
+                self.vertlist.append(cCVert(index, vcol))
+                index += 1
 
         self.length = len( self.vertlist )
 
@@ -565,6 +568,7 @@ class cCVertlist:
 
     def __repr__( self ):
         return '''\t\t*MESH_CVERTLIST {{\n{0}\t\t}}'''.format( self.dump() )
+
 class cCVert:
     def __init__( self, index, temp ):
         self.index = index
@@ -574,6 +578,7 @@ class cCVert:
 
     def __repr__( self ):
         return '''\t\t\t*MESH_VERTCOL {0} {1} {2} {3}\n'''.format( self.index, self.r, self.g, self.b )
+
 class cCFacelist:
     def __init__( self, facecount ):
         temp = [0 for x in range( facecount )]
