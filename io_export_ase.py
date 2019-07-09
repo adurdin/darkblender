@@ -1,21 +1,21 @@
-## ***** BEGIN GPL LICENSE BLOCK ***** 
-# 
-# This program is free software; you can redistribute it and/or 
-# modify it under the terms of the GNU General Public License 
-# as published by the Free Software Foundation; either version 2 
-# of the License, or (at your option) any later version. 
-# 
-# This program is distributed in the hope that it will be useful, 
-# but WITHOUT ANY WARRANTY; without even the implied warranty of 
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the 
-# GNU General Public License for more details. 
-# 
-# You should have received a copy of the GNU General Public License 
-# along with this program; if not, write to the Free Software Foundation, 
-# Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA. 
-# 
+## ***** BEGIN GPL LICENSE BLOCK *****
+#
+# This program is free software; you can redistribute it and/or
+# modify it under the terms of the GNU General Public License
+# as published by the Free Software Foundation; either version 2
+# of the License, or (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software Foundation,
+# Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+#
 # ***** END GPL LICENCE BLOCK *****
-# 
+#
 #
 # REQUIRED OPTIONS -
 # - Make Normals Consistent
@@ -120,7 +120,7 @@ class cMaterials:
 
         self.material_list = []
 
-        # Get all of the materials used by non-collision object meshes  
+        # Get all of the materials used by non-collision object meshes
         for object in objects:
             if collisionObject( object ) == 2:
                 continue
@@ -389,7 +389,7 @@ class cNodeTM:
 class cMesh:
     def __init__( self, obj ):
         bpy.ops.mesh.reveal
-        
+
         self.uvdata = cUVdata( obj )
 
         self.timevalue = '0'
@@ -417,7 +417,7 @@ class cMesh:
             self.cfacelist = ''
 
         self.normals = cNormallist( obj )
-       
+
     def __repr__( self ):
         temp = '''\t*MESH {{\n\t\t*TIMEVALUE {0}\n\t\t*MESH_NUMVERTEX {1}\n\t\t*MESH_NUMFACES {2}\n\t\t*MESH_VERTEX_LIST {3}\n\t\t*MESH_FACE_LIST {4}{5}{6}{7}{8}{9}\n{10}\n\t}}'''.format( self.timevalue, self.numvertex, self.numfaces, self.vertlist, self.facelist, self.uvdata, self.numcvertex, self.cvertlist, self.numcvfaces, self.cfacelist, self.normals )
         return temp
@@ -506,7 +506,7 @@ class cUVdata:
         self.uvdata = ''
         mesh = obj.data
         mesh.calc_loop_triangles()
-        
+
         if ( len( mesh.uv_layers ) == 0 ) or ( collisionObject( obj ) > 0 ):
             self.uvdata = "\n\t\t*MESH_NUMTVERTEX 0"
         else:
@@ -731,7 +731,7 @@ def collisionObject( object ):
             return 1
     return 0
 
-# Set the selection mode    
+# Set the selection mode
 def setSelMode( mode, default = True ):
     if default:
         if mode == 'VERT':
@@ -792,75 +792,75 @@ class ExportAse( bpy.types.Operator, ExportHelper ):
     bl_label = "Export"
     __doc__ = "Ascii Scene Exporter (.ase)"
     filename_ext = ".ase"
-    filter_glob = StringProperty( default = "*.ase", options = {'HIDDEN'} )
+    filter_glob: StringProperty( default = "*.ase", options = {'HIDDEN'} )
 
-    filepath = StringProperty( 
+    filepath: StringProperty(
         name = "File Path",
         description = "File path used for exporting the ASE file",
         maxlen = 1024,
         default = "" )
 
-    option_apply_stack = BoolProperty( 
+    option_apply_stack: BoolProperty(
             name = "Apply modifiers",
             description = "Apply modifier stack before exporting",
             default = True )
 
-    option_separate_by_material = BoolProperty( 
+    option_separate_by_material: BoolProperty(
             name = "Separate by material",
             description = "Separates objects by material",
             default = True )
 
-    option_triangulate = BoolProperty( 
+    option_triangulate: BoolProperty(
             name = "Triangulate",
             description = "Triangulates all exportable objects",
             default = True )
 
-    option_normals = BoolProperty( 
+    option_normals: BoolProperty(
             name = "Recalculate Normals",
             description = "Recalculate normals before exporting",
             default = False )
 
-    option_remove_doubles = BoolProperty( 
+    option_remove_doubles: BoolProperty(
             name = "Remove Doubles",
             description = "Remove any duplicate vertices before exporting",
             default = False )
 
-    option_apply_scale = BoolProperty( 
+    option_apply_scale: BoolProperty(
             name = "Scale",
             description = "Apply scale transformation",
             default = True )
 
-    option_apply_location = BoolProperty( 
+    option_apply_location: BoolProperty(
             name = "Location",
             description = "Apply location transformation",
             default = True )
 
-    option_apply_rotation = BoolProperty( 
+    option_apply_rotation: BoolProperty(
             name = "Rotation",
             description = "Apply rotation transformation",
             default = True )
 
-    option_smoothinggroups = BoolProperty( 
+    option_smoothinggroups: BoolProperty(
             name = "Smoothing Groups",
             description = "Construct hard edge islands as smoothing groups",
             default = True )
 
-    option_separate = BoolProperty( 
+    option_separate: BoolProperty(
             name = "Separate",
             description = "A separate ASE file for every selected object",
             default = False )
 
-    option_submaterials = BoolProperty( 
+    option_submaterials: BoolProperty(
             name = "Use Submaterials (UDK)",
             description = "Export a single material with multiple sub materials",
             default = False )
 
-    option_allowmultimats = BoolProperty( 
+    option_allowmultimats: BoolProperty(
             name = "Allow Multiple Materials (UDK)",
             description = "Allow multiple materials per geometry object",
             default = False )
 
-    option_scale = FloatProperty( 
+    option_scale: FloatProperty(
             name = "Scale",
             description = "Object scaling factor (default: 1.0)",
             min = 0.01,
@@ -1013,7 +1013,7 @@ class ExportAse( bpy.types.Operator, ExportHelper ):
 
             #Construct ASE Geometry Nodes
             aseGeometry += str( cGeomObject( object ) )
-            
+
         # Clean up
         bpy.ops.object.mode_set( mode = 'OBJECT' )
         bpy.ops.object.select_all(action='DESELECT')
