@@ -22,13 +22,13 @@
 # - Remove Doubles
 # **********************************
 bl_info = {
-    "name": "ASCII Scene Exporter",
+    "name": "ASCII Scene (ASE) format",
     "author": "Richard Bartlett, MCampagnini, The Dark Mod team",
     "version": ( 2, 8, 0 ),
     "blender": ( 2, 80, 0 ),
     "api": 36079,
-    "location": "File > Export > ASCII Scene Export(.ase)",
-    "description": "ASCII Scene Export(.ase)",
+    "location": "File > Export",
+    "description": "Export to ASCII Scene (ASE) format, as used by id Tech 4 and The Dark Mod",
     "warning": "",
     "category": "Import-Export"
 }
@@ -1044,7 +1044,7 @@ class ExportAse( bpy.types.Operator, ExportHelper ):
         return {'FINISHED'}
 
 def menu_func( self, context ):
-    self.layout.operator( ExportAse.bl_idname, text = "Ascii Scene Exporter (.ase)" )
+    self.layout.operator( ExportAse.bl_idname, text = "ASCII Scene (.ase)" )
 
 def register():
     bpy.utils.register_class( ExportAse )

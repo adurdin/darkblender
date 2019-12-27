@@ -55,12 +55,12 @@ v5.5 format.
 
 
 bl_info = {
-    "name": "Export LightWave(.lwo)",
+    "name": "Lightwave Object (LWO) format",
     "author": "Anthony D'Agostino (Scorpius), Gert De Roost, The Dark Mod team",
     "version": (2, 8, 0),
     "blender": (2, 80, 0),
     "location": "File > Export",
-    "description": "Lightwave .lwo export",
+    "description": "Export to Lightwave LWO format",
     "warning": "",
     "wiki_url": "",
     "tracker_url": "",
@@ -1188,7 +1188,7 @@ class LwoExport(bpy.types.Operator, ExportHelper):
 
 
 def menu_func(self, context):
-    self.layout.operator(LwoExport.bl_idname, text="Lightwave (.lwo)")
+    self.layout.operator(LwoExport.bl_idname, text="Lightwave Object (.lwo)")
 
 def register():
     bpy.app.handlers.depsgraph_update_post.append(sceneupdate_handler)
