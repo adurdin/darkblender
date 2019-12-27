@@ -9,5 +9,5 @@ To install the scripts, simply download them to a location of your choice, then
 install them via the `Add-ons` section of Blender preferences. The new file
 formats should appear under `Export` in the `File` menu.
 
-**NOTE**: for Blender 2.8 versions of the scripts, switch to the `blender-2.80`
-branch instead of `master`.
+**NOTE**: Make sure to download the scripts from the correct branch. The
+blender-2.80 scripts will not work with Blender 2.79 and vice versa.
