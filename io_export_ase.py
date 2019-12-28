@@ -274,54 +274,60 @@ class cMaterial:
 
     def __repr__( self ):
         return self.dump
-class cDiffusemap:
-    def __init__( self, slot ):
-        import os
-        self.dump = ''
-        if slot is None:
-            self.name = 'default'
-            self.mapclass = 'Bitmap'
-            self.bitmap = 'None'
-        else:
-            self.name = slot.name
-            self.mapclass = 'Bitmap'
-            self.bitmap = '\\\\base\\' + self.name.replace( '/', '\\' )
-        self.subno = 1
-        self.amount = aseFloat( 1.0 )
-        self.type = 'Screen'
-        self.uoffset = aseFloat( 0.0 )
-        self.voffset = aseFloat( 0.0 )
-        self.utiling = aseFloat( 1.0 )
-        self.vtiling = aseFloat( 1.0 )
-        self.angle = aseFloat( 0.0 )
-        self.blur = aseFloat( 1.0 )
-        self.bluroffset = aseFloat( 0.0 )
-        self.noiseamt = aseFloat( 1.0 )
-        self.noisesize = aseFloat( 1.0 )
-        self.noiselevel = 1
-        self.noisephase = aseFloat( 0.0 )
-        self.bitmapfilter = 'Pyramidal'
 
-        self.dump = ("\n\t\t*MAP_DIFFUSE {{"+
-                    "\n\t\t\t*MAP_NAME \"{0}\""+
-                    "\n\t\t\t*MAP_CLASS \"{1}\""+
-                    "\n\t\t\t*MAP_SUBNO {2}"+
-                    "\n\t\t\t*MAP_AMOUNT {3}"+
-                    "\n\t\t\t*BITMAP \"{4}\""+
-                    "\n\t\t\t*MAP_TYPE {5}"+
-                    "\n\t\t\t*UVW_U_OFFSET {6}"+
-                    "\n\t\t\t*UVW_V_OFFSET {7}"+
-                    "\n\t\t\t*UVW_U_TILING {8}"+
-                    "\n\t\t\t*UVW_V_TILING {9}"+
-                    "\n\t\t\t*UVW_ANGLE {10}"+
-                    "\n\t\t\t*UVW_BLUR {11}"+
-                    "\n\t\t\t*UVW_BLUR_OFFSET {12}"+
-                    "\n\t\t\t*UVW_NOUSE_AMT {13}"+
-                    "\n\t\t\t*UVW_NOISE_SIZE {14}"+
-                    "\n\t\t\t*UVW_NOISE_LEVEL {15}"+
-                    "\n\t\t\t*UVW_NOISE_PHASE {16}"+
-                    "\n\t\t\t*BITMAP_FILTER {17}"+
-                    "\n\t\t}}").format( self.name, self.mapclass, self.subno, self.amount, self.bitmap, self.type, self.uoffset, self.voffset, self.utiling, self.vtiling, self.angle, self.blur, self.bluroffset, self.noiseamt, self.noisesize, self.noiselevel, self.noisephase, self.bitmapfilter )
+class cDiffusemap:
+    "Representation of diffuse map properties in ASE string format"
+
+    def __init__( self, slot ):
+        if slot is None:
+            name = 'default'
+            bitmap = 'None'
+        else:
+            name = slot.name
+            bitmap = '\\\\base\\' + name.replace( '/', '\\' )
+        subno = 1
+        mapclass = 'Bitmap'
+        amount = aseFloat( 1.0 )
+        maptype = 'Screen'
+        uoffset = aseFloat( 0.0 )
+        voffset = aseFloat( 0.0 )
+        utiling = aseFloat( 1.0 )
+        vtiling = aseFloat( 1.0 )
+        angle = aseFloat( 0.0 )
+        blur = aseFloat( 1.0 )
+        bluroffset = aseFloat( 0.0 )
+        noiseamt = aseFloat( 1.0 )
+        noisesize = aseFloat( 1.0 )
+        noiselevel = 1
+        noisephase = aseFloat( 0.0 )
+        bitmapfilter = 'Pyramidal'
+
+        self.dump = (
+            "\n\t\t*MAP_DIFFUSE {{"+
+            "\n\t\t\t*MAP_NAME \"{0}\""+
+            "\n\t\t\t*MAP_CLASS \"{1}\""+
+            "\n\t\t\t*MAP_SUBNO {2}"+
+            "\n\t\t\t*MAP_AMOUNT {3}"+
+            "\n\t\t\t*BITMAP \"{4}\""+
+            "\n\t\t\t*MAP_TYPE {5}"+
+            "\n\t\t\t*UVW_U_OFFSET {6}"+
+            "\n\t\t\t*UVW_V_OFFSET {7}"+
+            "\n\t\t\t*UVW_U_TILING {8}"+
+            "\n\t\t\t*UVW_V_TILING {9}"+
+            "\n\t\t\t*UVW_ANGLE {10}"+
+            "\n\t\t\t*UVW_BLUR {11}"+
+            "\n\t\t\t*UVW_BLUR_OFFSET {12}"+
+            "\n\t\t\t*UVW_NOISE_AMT {13}"+
+            "\n\t\t\t*UVW_NOISE_SIZE {14}"+
+            "\n\t\t\t*UVW_NOISE_LEVEL {15}"+
+            "\n\t\t\t*UVW_NOISE_PHASE {16}"+
+            "\n\t\t\t*BITMAP_FILTER {17}"+
+            "\n\t\t}}"
+        ).format(
+            name, mapclass, subno, amount, bitmap, maptype, uoffset, voffset,
+            utiling, vtiling, angle, blur, bluroffset, noiseamt, noisesize,
+            noiselevel, noisephase, bitmapfilter
+        )
 
     def __repr__( self ):
         return self.dump
