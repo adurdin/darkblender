@@ -275,6 +275,55 @@ class cMaterial:
     def __repr__( self ):
         return self.dump
 
+def indent_line(text, indent_level=0):
+    """Indent a line by the specified number of tabs."""
+    return ('\t' * indent_level) + text
+
+class ASEDecl(object):
+    """A named block in an ASE file.
+
+    Each ASE decl consists of a starred uppercase block title followed by an
+    open brace, then any number of sub-declarations or key/value lines, then a
+    closing brace.
+
+    For example:
+
+    *BLOCK_TITLE {
+        *FIRST_KEY 1.0
+        *SECOND_KEY 2.5
+    }
+
+    Each line within the decl block is indented relative to the block's own
+    indent level.
+    """
+
+    def __init__(self, name, indent_level=0):
+        """Initialise an ASEDecl specifying an indent level if needed."""
+        self.__name = name
+        self.__indent = indent_level
+        self.__header = indent_line("*{0} {{".format(name), self.__indent)
+        self.__lines = []
+        self.__footer = indent_line("}", self.__indent)
+
+    def add(self, key, value, quote_value=False):
+        """Add a line to this block."""
+
+        # Quote the value if requested
+        if quote_value:
+            value_str = '"{0}"'.format(value)
+        else:
+            value_str = value
+
+        # Construct and append the indented line
+        self.__lines.append(
+            indent_line("*{0} {1}".format(key.upper(), value_str),
+                        self.__indent + 1)
+        )
+
+    def __repr__(self):
+        """Convert the ASEDecl into its final string representation."""
+        return '\n'.join([self.__header] + self.__lines + [self.__footer])
+
 class cDiffusemap:
     "Representation of diffuse map properties in ASE string format"
 
@@ -302,35 +351,28 @@ class cDiffusemap:
         noisephase = aseFloat( 0.0 )
         bitmapfilter = 'Pyramidal'
 
-        self.dump = (
-            "\n\t\t*MAP_DIFFUSE {{"+
-            "\n\t\t\t*MAP_NAME \"{0}\""+
-            "\n\t\t\t*MAP_CLASS \"{1}\""+
-            "\n\t\t\t*MAP_SUBNO {2}"+
-            "\n\t\t\t*MAP_AMOUNT {3}"+
-            "\n\t\t\t*BITMAP \"{4}\""+
-            "\n\t\t\t*MAP_TYPE {5}"+
-            "\n\t\t\t*UVW_U_OFFSET {6}"+
-            "\n\t\t\t*UVW_V_OFFSET {7}"+
-            "\n\t\t\t*UVW_U_TILING {8}"+
-            "\n\t\t\t*UVW_V_TILING {9}"+
-            "\n\t\t\t*UVW_ANGLE {10}"+
-            "\n\t\t\t*UVW_BLUR {11}"+
-            "\n\t\t\t*UVW_BLUR_OFFSET {12}"+
-            "\n\t\t\t*UVW_NOISE_AMT {13}"+
-            "\n\t\t\t*UVW_NOISE_SIZE {14}"+
-            "\n\t\t\t*UVW_NOISE_LEVEL {15}"+
-            "\n\t\t\t*UVW_NOISE_PHASE {16}"+
-            "\n\t\t\t*BITMAP_FILTER {17}"+
-            "\n\t\t}}"
-        ).format(
-            name, mapclass, subno, amount, bitmap, maptype, uoffset, voffset,
-            utiling, vtiling, angle, blur, bluroffset, noiseamt, noisesize,
-            noiselevel, noisephase, bitmapfilter
-        )
+        self.__decl = ASEDecl("MAP_DIFFUSE", 2)
+        self.__decl.add("MAP_NAME", name, True)
+        self.__decl.add("MAP_CLASS", mapclass, True)
+        self.__decl.add("MAP_SUBNO", subno)
+        self.__decl.add("MAP_AMOUNT", amount)
+        self.__decl.add("BITMAP", bitmap, True)
+        self.__decl.add("MAP_TYPE", maptype)
+        self.__decl.add("UVW_U_OFFSET", uoffset)
+        self.__decl.add("UVW_V_OFFSET", voffset)
+        self.__decl.add("UVW_U_TILING", utiling)
+        self.__decl.add("UVW_V_TILING", vtiling)
+        self.__decl.add("UVW_ANGLE", angle)
+        self.__decl.add("UVW_BLUR", blur)
+        self.__decl.add("UVW_BLUR_OFFSET", bluroffset)
+        self.__decl.add("UVW_NOISE_AMT", noiseamt)
+        self.__decl.add("UVW_NOISE_SIZE", noisesize)
+        self.__decl.add("UVW_NOISE_LEVEL", noiselevel)
+        self.__decl.add("UVW_NOISE_PHASE", noisephase)
+        self.__decl.add("BITMAP_FILTER", bitmapfilter)
 
-    def __repr__( self ):
-        return self.dump
+    def __repr__(self):
+        return '\n' + repr(self.__decl)
 
 #== Geometry ===============================================================
 class cGeomObject:
@@ -793,10 +835,10 @@ from bpy_extras.io_utils import ExportHelper
 from bpy.props import StringProperty, BoolProperty, FloatProperty
 
 class ExportAse( bpy.types.Operator, ExportHelper ):
-    '''Load an Ascii Scene Export File'''
+    """Export selected objects to ASE format"""
+
     bl_idname = "export.ase"
     bl_label = "Export"
-    __doc__ = "Ascii Scene Exporter (.ase)"
     filename_ext = ".ase"
     filter_glob: StringProperty( default = "*.ase", options = {'HIDDEN'} )
 
