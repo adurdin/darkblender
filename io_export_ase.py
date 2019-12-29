@@ -308,8 +308,14 @@ class ASEDecl(object):
     def add(self, key, value, quote_value=False):
         """Add a line to this block."""
 
-        # Quote the value if requested
-        if quote_value:
+        # If the value is a float, format it with a fixed number of decimal
+        # places. Otherwise the only modification we make to the value is to
+        # quote it if requested (we cannot make our own decision with
+        # 'isinstance(value, str)', because the format includes both quoted and
+        # non-quoted strings).
+        if isinstance(value, float):
+            value_str = aseFloat(value)
+        elif quote_value:
             value_str = '"{0}"'.format(value)
         else:
             value_str = value
@@ -334,42 +340,26 @@ class cDiffusemap:
         else:
             name = slot.name
             bitmap = '\\\\base\\' + name.replace( '/', '\\' )
-        subno = 1
-        mapclass = 'Bitmap'
-        amount = aseFloat( 1.0 )
-        maptype = 'Screen'
-        uoffset = aseFloat( 0.0 )
-        voffset = aseFloat( 0.0 )
-        utiling = aseFloat( 1.0 )
-        vtiling = aseFloat( 1.0 )
-        angle = aseFloat( 0.0 )
-        blur = aseFloat( 1.0 )
-        bluroffset = aseFloat( 0.0 )
-        noiseamt = aseFloat( 1.0 )
-        noisesize = aseFloat( 1.0 )
-        noiselevel = 1
-        noisephase = aseFloat( 0.0 )
-        bitmapfilter = 'Pyramidal'
 
         self.__decl = ASEDecl("MAP_DIFFUSE", 2)
         self.__decl.add("MAP_NAME", name, True)
-        self.__decl.add("MAP_CLASS", mapclass, True)
-        self.__decl.add("MAP_SUBNO", subno)
-        self.__decl.add("MAP_AMOUNT", amount)
+        self.__decl.add("MAP_CLASS", 'Bitmap', True)
+        self.__decl.add("MAP_SUBNO", 1)
+        self.__decl.add("MAP_AMOUNT", 1.0)
         self.__decl.add("BITMAP", bitmap, True)
-        self.__decl.add("MAP_TYPE", maptype)
-        self.__decl.add("UVW_U_OFFSET", uoffset)
-        self.__decl.add("UVW_V_OFFSET", voffset)
-        self.__decl.add("UVW_U_TILING", utiling)
-        self.__decl.add("UVW_V_TILING", vtiling)
-        self.__decl.add("UVW_ANGLE", angle)
-        self.__decl.add("UVW_BLUR", blur)
-        self.__decl.add("UVW_BLUR_OFFSET", bluroffset)
-        self.__decl.add("UVW_NOISE_AMT", noiseamt)
-        self.__decl.add("UVW_NOISE_SIZE", noisesize)
-        self.__decl.add("UVW_NOISE_LEVEL", noiselevel)
-        self.__decl.add("UVW_NOISE_PHASE", noisephase)
-        self.__decl.add("BITMAP_FILTER", bitmapfilter)
+        self.__decl.add("MAP_TYPE", 'Screen')
+        self.__decl.add("UVW_U_OFFSET", 0.0)
+        self.__decl.add("UVW_V_OFFSET", 0.0)
+        self.__decl.add("UVW_U_TILING", 1.0)
+        self.__decl.add("UVW_V_TILING", 1.0)
+        self.__decl.add("UVW_ANGLE", 0.0)
+        self.__decl.add("UVW_BLUR", 1.0)
+        self.__decl.add("UVW_BLUR_OFFSET", 0.0)
+        self.__decl.add("UVW_NOISE_AMT", 1.0)
+        self.__decl.add("UVW_NOISE_SIZE", 1.0)
+        self.__decl.add("UVW_NOISE_LEVEL", 1)
+        self.__decl.add("UVW_NOISE_PHASE", 0.0)
+        self.__decl.add("BITMAP_FILTER", 'Pyramidal')
 
     def __repr__(self):
         return '\n' + repr(self.__decl)
