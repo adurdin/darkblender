@@ -279,6 +279,15 @@ def indent_line(text, indent_level=0):
     """Indent a line by the specified number of tabs."""
     return ('\t' * indent_level) + text
 
+class Quoted(object):
+    """Wrapper for a string which adds quotes when serialised."""
+
+    def __init__(self, string):
+        self.__str = string;
+
+    def __str__(self):
+        return '"{0}"'.format(self.__str)
+
 class ASEDecl(object):
     """A named block in an ASE file.
 
@@ -305,20 +314,15 @@ class ASEDecl(object):
         self.__lines = []
         self.__footer = indent_line("}", self.__indent)
 
-    def add(self, key, value, quote_value=False):
+    def add(self, key, value):
         """Add a line to this block."""
 
         # If the value is a float, format it with a fixed number of decimal
-        # places. Otherwise the only modification we make to the value is to
-        # quote it if requested (we cannot make our own decision with
-        # 'isinstance(value, str)', because the format includes both quoted and
-        # non-quoted strings).
+        # places. Otherwise insert it using its own string representation.
         if isinstance(value, float):
             value_str = aseFloat(value)
-        elif quote_value:
-            value_str = '"{0}"'.format(value)
         else:
-            value_str = value
+            value_str = str(value)
 
         # Construct and append the indented line
         self.__lines.append(
@@ -326,7 +330,7 @@ class ASEDecl(object):
                         self.__indent + 1)
         )
 
-    def __repr__(self):
+    def __str__(self):
         """Convert the ASEDecl into its final string representation."""
         return '\n'.join([self.__header] + self.__lines + [self.__footer])
 
@@ -334,6 +338,8 @@ class cDiffusemap:
     "Representation of diffuse map properties in ASE string format"
 
     def __init__( self, slot ):
+        """Initialise diffusemap data with a material slot."""
+
         if slot is None:
             name = 'default'
             bitmap = 'None'
@@ -342,11 +348,11 @@ class cDiffusemap:
             bitmap = '\\\\base\\' + name.replace( '/', '\\' )
 
         self.__decl = ASEDecl("MAP_DIFFUSE", 2)
-        self.__decl.add("MAP_NAME", name, True)
-        self.__decl.add("MAP_CLASS", 'Bitmap', True)
+        self.__decl.add("MAP_NAME", Quoted(name))
+        self.__decl.add("MAP_CLASS", Quoted('Bitmap'))
         self.__decl.add("MAP_SUBNO", 1)
         self.__decl.add("MAP_AMOUNT", 1.0)
-        self.__decl.add("BITMAP", bitmap, True)
+        self.__decl.add("BITMAP", Quoted(bitmap))
         self.__decl.add("MAP_TYPE", 'Screen')
         self.__decl.add("UVW_U_OFFSET", 0.0)
         self.__decl.add("UVW_V_OFFSET", 0.0)
@@ -361,8 +367,9 @@ class cDiffusemap:
         self.__decl.add("UVW_NOISE_PHASE", 0.0)
         self.__decl.add("BITMAP_FILTER", 'Pyramidal')
 
-    def __repr__(self):
-        return '\n' + repr(self.__decl)
+    def __str__(self):
+        """Write the diffusemap data into ASE format."""
+        return '\n' + str(self.__decl)
 
 #== Geometry ===============================================================
 class cGeomObject:
