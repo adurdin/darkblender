@@ -121,8 +121,17 @@ class MessageOperator(bpy.types.Operator):
         row.label(text = '', icon = "ERROR")
         row.label(text="Error | This exporter requires a full python installation")
 
+def generate_nstring(string):
+    "Generate a null terminated string with an even number of bytes"
+    if len(string) % 2 == 0:  # even
+        string += "\0\0"
+    else:                   # odd
+        string += "\0"
+    return string
 
 class LwoExport(bpy.types.Operator, ExportHelper):
+    "Main exporter class"
+
     bl_idname = "export.lwo"
     bl_label = "LwoExport"
     bl_description = "Export Lightwave .lwo file"
@@ -452,16 +461,6 @@ class LwoExport(bpy.types.Operator, ExportHelper):
         bpy.context.view_layer.objects.active = actobj
 
 
-    # =======================================
-    # === Generate Null-Terminated String ===
-    # =======================================
-    def generate_nstring(self, string):
-        if len(string)%2 == 0:  # even
-            string += "\0\0"
-        else:                   # odd
-            string += "\0"
-        return string
-
     # ===============================
     # === Get Used Material Names ===
     # ===============================
@@ -489,10 +488,10 @@ class LwoExport(bpy.types.Operator, ExportHelper):
         data = io.BytesIO()
         if material_names:
             for mat in material_names:
-                data.write(bytes(self.generate_nstring(mat), 'UTF-8'))
+                data.write(bytes(generate_nstring(mat), 'UTF-8'))
             return data.getvalue()
         else:
-            return self.generate_nstring('')
+            return generate_nstring('')
 
     # ========================
     # === Generate Surface ===
@@ -514,7 +513,7 @@ class LwoExport(bpy.types.Operator, ExportHelper):
         data.write(struct.pack(">h", idx))          # layer number
         data.write(struct.pack(">h", 0))            # flags
         data.write(struct.pack(">fff", px, pz, py)) # pivot
-        data.write(bytes(self.generate_nstring(name.replace(" ","_").replace(".", "_")), 'UTF-8'))
+        data.write(bytes(generate_nstring(name.replace(" ","_").replace(".", "_")), 'UTF-8'))
         return data.getvalue()
 
     # ===================================
@@ -535,7 +534,7 @@ class LwoExport(bpy.types.Operator, ExportHelper):
     # ============================================
     def generate_vnorms(self, mesh, nolist):
         data = io.BytesIO()
-        name = self.generate_nstring("vert_normals")
+        name = generate_nstring("vert_normals")
         data.write(b"NORM")                                     # type
         data.write(struct.pack(">H", 3))                        # dimension
         data.write(bytes(name, 'UTF-8'))                        # name
@@ -557,7 +556,7 @@ class LwoExport(bpy.types.Operator, ExportHelper):
     def generate_lnorms(self, mesh):
         mesh.calc_normals_split()
         data = io.BytesIO()
-        name = self.generate_nstring("vert_normals")
+        name = generate_nstring("vert_normals")
         data.write(b"NORM")                                     # type
         data.write(struct.pack(">H", 3))                        # dimension
         data.write(bytes(name, 'UTF-8'))                        # name
@@ -590,57 +589,28 @@ class LwoExport(bpy.types.Operator, ExportHelper):
         data.write(struct.pack(">6f", min(xx), min(zz), min(yy), max(xx), max(zz), max(yy)))
         return data.getvalue()
 
-    # ========================================
-    # === Average All Vertex Colors (Fast) ===
-    # ========================================
-    '''
-    def average_vertexcolors(self, mesh):
-        vertexcolors = {}
-        vcolor_add = lambda u, v: [u[0]+v[0], u[1]+v[1], u[2]+v[2], u[3]+v[3]]
-        vcolor_div = lambda u, s: [u[0]/s, u[1]/s, u[2]/s, u[3]/s]
-        for i, f in enumerate(mesh.faces):  # get all vcolors that share this vertex
-            if not i%100:
-                Blender.Window.DrawProgressBar(float(i)/len(mesh.verts), "Finding Shared VColors")
-            col = f.col
-            for j in range(len(f)):
-                index = f[j].index
-                color = col[j]
-                r,g,b = color.r, color.g, color.b
-                vertexcolors.setdefault(index, []).append([r,g,b,255])
-        i = 0
-        for index, value in vertexcolors.iteritems():   # average them
-            if not i%100:
-                Blender.Window.DrawProgressBar(float(i)/len(mesh.verts), "Averaging Vertex Colors")
-            vcolor = [0,0,0,0]  # rgba
-            for v in value:
-                vcolor = vcolor_add(vcolor, v)
-            shared = len(value)
-            value[:] = vcolor_div(vcolor, shared)
-            i+=1
-        return vertexcolors
-    '''
-
     # ====================================================
     # === Generate RGBA Vertex Colors (VMAD Chunk) ===
     # ====================================================
     def generate_rgba_vc(self, mesh):
         alldata = []
-        layers = mesh.vertex_colors
-        for l in layers:
-            vcname = self.generate_nstring(l.name)
+
+        # For each vertex color layer
+        for layer in mesh.vertex_colors:
+
+            # Construct output stream for this layer
             data = io.BytesIO()
-            data.write(b"RGBA")                                     # type
-            data.write(struct.pack(">H", 4))                        # dimension
-            data.write(bytes(vcname, 'UTF-8')) # name
+            data.write(b"RGBA")                                      # type
+            data.write(struct.pack(">H", 4))                         # dimension
+            data.write(bytes(generate_nstring(layer.name), 'UTF-8')) # name
 
             found = False
-            for i, p in enumerate(mesh.polygons):
-                p_vi = p.vertices
-                for v, loop in zip(p.vertices, p.loop_indices):
-                    r,g,b = tuple(l.data[loop].color)
-                    data.write(self.generate_vx(v)) # vertex index
-                    data.write(self.generate_vx(i)) # face index
-                    data.write(struct.pack(">ffff", r, g, b, 0.5))
+            for face_idx, face in enumerate(mesh.polygons):
+                for vert_idx, loop in zip(face.vertices, face.loop_indices):
+                    (r, g, b, a) = layer.data[loop].color
+                    data.write(self.generate_vx(vert_idx))
+                    data.write(self.generate_vx(face_idx))
+                    data.write(struct.pack(">ffff", r, g, b, a))
                     found = True
             if found:
                 alldata.append(data.getvalue())
@@ -654,7 +624,7 @@ class LwoExport(bpy.types.Operator, ExportHelper):
         alldata = []
         layers = mesh.vertex_colors
         for l in layers:
-            vcname = self.generate_nstring(l.name)
+            vcname = generate_nstring(l.name)
             data = io.BytesIO()
             data.write(b"RGB ")                                     # type
             data.write(struct.pack(">H", 3))                        # dimension
@@ -681,7 +651,7 @@ class LwoExport(bpy.types.Operator, ExportHelper):
         alldata = []
         layers = mesh.uv_layers
         for l in layers:
-            uvname = self.generate_nstring(l.name)
+            uvname = generate_nstring(l.name)
             data = io.BytesIO()
             data.write(b"TXUV")                                      # type
             data.write(struct.pack(">H", 2))                         # dimension
@@ -714,7 +684,7 @@ class LwoExport(bpy.types.Operator, ExportHelper):
         data = io.BytesIO()
         data.write(b"WGHT")                                      # type
         data.write(struct.pack(">H", 1))                         # dimension
-        data.write(bytes(self.generate_nstring("Edge Weight"), 'UTF-8')) # name
+        data.write(bytes(generate_nstring("Edge Weight"), 'UTF-8')) # name
         face_edge_map = {ek: mesh.edges[i] for i, ek in enumerate(mesh.edge_keys)}
         for i, p in enumerate(mesh.polygons):
             vs = list(p.vertices)
@@ -740,7 +710,7 @@ class LwoExport(bpy.types.Operator, ExportHelper):
         alldata = []
         keyblocks = mesh.shape_keys.key_blocks
         for kb in keyblocks:
-            emname = self.generate_nstring(kb.name)
+            emname = generate_nstring(kb.name)
             data = io.BytesIO()
             data.write(b"MORF")                                      # type
             data.write(struct.pack(">H", 3))                         # dimension
@@ -760,7 +730,7 @@ class LwoExport(bpy.types.Operator, ExportHelper):
         alldata = []
         vgroups = obj.vertex_groups
         for vg in vgroups:
-            vgname = self.generate_nstring(vg.name)
+            vgname = generate_nstring(vg.name)
             data = io.BytesIO()
             data.write(b"WGHT")                                      # type
             data.write(struct.pack(">H", 1))                         # dimension
@@ -832,48 +802,12 @@ class LwoExport(bpy.types.Operator, ExportHelper):
                 data.write(struct.pack(">H", 0))
         return data.getvalue()
 
-    # ===================================================
-    # === Generate VC Surface Definition (SURF Chunk) ===
-    # ===================================================
-    """
-    def generate_vcol_surf(mesh):
-        data = io.BytesIO()
-        if len(mesh.vertex_colors):
-            surface_name = self.generate_nstring(self.VCOL_NAME)
-        data.write(surface_name)
-        data.write(b"\0\0")
-
-        data.write(b"COLR")
-        data.write(struct.pack(">H", 14))
-        data.write(struct.pack(">fffH", 1, 1, 1, 0))
-
-        data.write(b"DIFF")
-        data.write(struct.pack(">H", 6))
-        data.write(struct.pack(">fH", 0.0, 0))
-
-        data.write(b"LUMI")
-        data.write(struct.pack(">H", 6))
-        data.write(struct.pack(">fH", 1.0, 0))
-
-        data.write(b"VCOL")
-        data.write(struct.pack(">H", 34))
-        data.write(struct.pack(">fH4s", 1.0, 0, "RGB "))  # intensity, envelope, type
-        data.write(bytes(map(ord, self.generate_nstring(mesh.vert_colors.active.name)))) # name
-
-        data.write(b"CMNT") # material comment
-        comment = "Vertex Colors: Exported from Blender\256 2.70"
-        comment = self.generate_nstring(comment)
-        data.write(struct.pack(">H", len(comment)))
-        data.write(bytes(map(ord, comment)))
-        return data.getvalue()
-    """
-
     # ================================================
     # === Generate Surface Definition (SURF Chunk) ===
     # ================================================
     def generate_surf(self, mesh, material_name):
         data = io.BytesIO()
-        data.write(bytes(self.generate_nstring(material_name), 'UTF-8'))
+        data.write(bytes(generate_nstring(material_name), 'UTF-8'))
 
         try:
             material = bpy.data.materials.get(material_name)
@@ -969,7 +903,7 @@ class LwoExport(bpy.types.Operator, ExportHelper):
                 data.write(b"VCOL")
                 data_tmp = io.BytesIO()
                 data_tmp.write(struct.pack(">fH4s", 1.0, 0, b"RGBA"))  # intensity, envelope, type
-                data_tmp.write(bytes(self.generate_nstring(vcname), 'UTF-8')) # name
+                data_tmp.write(bytes(generate_nstring(vcname), 'UTF-8')) # name
                 data.write(struct.pack(">H", len(data_tmp.getvalue())))
                 data.write(data_tmp.getvalue())
 
@@ -1058,7 +992,7 @@ class LwoExport(bpy.types.Operator, ExportHelper):
                                 data_blok.write(struct.pack(">HH", 2, 5)) # UV projection
 
                                 data_blok.write(b"VMAP")
-                                uvname = self.generate_nstring(mtex.uv_layer)
+                                uvname = generate_nstring(mtex.uv_layer)
                                 data_blok.write(struct.pack(">H", len(uvname)))
                                 data_blok.write(bytes(uvname, 'UTF-8'))
 
@@ -1111,7 +1045,7 @@ class LwoExport(bpy.types.Operator, ExportHelper):
     def generate_default_surf(self):
         data = io.BytesIO()
         material_name = self.DEFAULT_NAME
-        data.write(bytes(self.generate_nstring(material_name), 'UTF-8'))
+        data.write(bytes(generate_nstring(material_name), 'UTF-8'))
 
         data.write(b"COLR")
         data.write(struct.pack(">H", 14))
@@ -1159,7 +1093,7 @@ class LwoExport(bpy.types.Operator, ExportHelper):
     def generate_clip(self, pathname):
         data = io.BytesIO()
         pathname = pathname[0:2] + pathname.replace("\\", "/")[2:]  # Convert to Modo standard path
-        imagename = self.generate_nstring(pathname)
+        imagename = generate_nstring(pathname)
         data.write(struct.pack(">L", self.currclipid))                      # CLIP sequence/id
         data.write(b"STIL")                                         # STIL image
         data.write(struct.pack(">H", len(imagename)))               # Size of image name
