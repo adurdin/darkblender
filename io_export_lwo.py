@@ -69,7 +69,7 @@ import bpy, bmesh
 from bpy_extras.io_utils import ExportHelper
 from bpy.props import StringProperty, BoolProperty, FloatProperty, EnumProperty
 from bpy.app.handlers import persistent
-import os, math, functools
+import os, math
 try: import struct
 except: struct = None
 try: import io
@@ -120,6 +120,20 @@ def generate_nstring(string):
     else:                   # odd
         string += "\0"
     return string
+
+def write_chunk(dest_file, name, data):
+    "Write a named LWO chunk to the given file-like object"
+    dest_file.write(bytes(name, 'UTF-8'))
+    dest_file.write(struct.pack(">L", len(data)))
+    dest_file.write(data)
+
+def write_header(dest_file, chunks):
+    "Write an LWO header including the size of contained chunks"
+    total_chunk_size = sum([len(chunk) for chunk in chunks])
+    form_size = total_chunk_size + len(chunks)*8 + len("FORM")
+    dest_file.write(b"FORM")
+    dest_file.write(struct.pack(">L", form_size))
+    dest_file.write(b"LWO2")
 
 class LwoExport(bpy.types.Operator, ExportHelper):
     "Main exporter class"
@@ -309,13 +323,6 @@ class LwoExport(bpy.types.Operator, ExportHelper):
             if (self.option_batch):
                 self.meshes = [obj.data]
 
-            if (self.option_batch):
-                filename = os.path.dirname(filename)
-                filename += (os.sep + object_name_lookup_orig[obj].replace('.', '_'))
-            if not filename.lower().endswith('.lwo'):
-                filename += '.lwo'
-            file = open(filename, "wb")
-
             matmeshes, material_names = self.get_used_material_names()
             self.clips = []
             self.clippaths = []
@@ -350,39 +357,47 @@ class LwoExport(bpy.types.Operator, ExportHelper):
                 if mesh.uv_layers:
                     vmad_uvs = self.generate_vmad_uv(mesh)  # per face
 
-                self.write_chunk(meshdata, "LAYR", layr); chunks.append(layr)
-                self.write_chunk(meshdata, "PNTS", pnts); chunks.append(pnts)
-                self.write_chunk(meshdata, "BBOX", bbox); chunks.append(bbox)
+                write_chunk(meshdata, "LAYR", layr); chunks.append(layr)
+                write_chunk(meshdata, "PNTS", pnts); chunks.append(pnts)
+                write_chunk(meshdata, "BBOX", bbox); chunks.append(bbox)
 
                 if mesh.vertex_colors:
                     for vmad in rgba_vcs:
-                        self.write_chunk(meshdata, "VMAD", vmad)
+                        write_chunk(meshdata, "VMAD", vmad)
                         chunks.append(vmad)
-                self.write_chunk(meshdata, "POLS", pols); chunks.append(pols)
-                self.write_chunk(meshdata, "PTAG", ptag); chunks.append(ptag)
+                write_chunk(meshdata, "POLS", pols); chunks.append(pols)
+                write_chunk(meshdata, "PTAG", ptag); chunks.append(ptag)
 
                 if mesh.uv_layers:
                     for vmad in vmad_uvs:
-                        self.write_chunk(meshdata, "VMAD", vmad)
+                        write_chunk(meshdata, "VMAD", vmad)
                         chunks.append(vmad)
 
                 layer_index += 1
 
-            surfs = list(surfs)
             for clip in self.clips:
                 chunks.append(clip)
             for surf in surfs:
                 chunks.append(surf)
 
-            self.write_header(file, chunks)
-            self.write_chunk(file, "TAGS", tags)
-            file.write(meshdata.getvalue()); meshdata.close()
-            for clip in self.clips:
-                self.write_chunk(file, "CLIP", clip)
-            for surf in surfs:
-                self.write_chunk(file, "SURF", surf)
+            # Prepare the output file
+            if (self.option_batch):
+                filename = os.path.dirname(filename)
+                filename += (os.sep + object_name_lookup_orig[obj].replace('.', '_'))
+            if not filename.lower().endswith('.lwo'):
+                filename += '.lwo'
+            outfile = open(filename, "wb")
 
-            file.close()
+            # Write generated chunk data to the output file
+            write_header(outfile, chunks)
+            write_chunk(outfile, "TAGS", tags)
+            outfile.write(meshdata.getvalue()); meshdata.close()
+            for clip in self.clips:
+                write_chunk(outfile, "CLIP", clip)
+            for surf in surfs:
+                write_chunk(outfile, "SURF", surf)
+
+            outfile.close()
 
             bpy.ops.object.select_all(action='DESELECT')
             bpy.context.view_layer.objects.active = obj
@@ -716,26 +731,6 @@ class LwoExport(bpy.types.Operator, ExportHelper):
         data.write(struct.pack(">fH", gloss, 0))
 
         return data.getvalue()
-
-    # ===================
-    # === Write Chunk ===
-    # ===================
-    def write_chunk(self, file, name, data):
-        file.write(bytes(name, 'UTF-8'))
-        file.write(struct.pack(">L", len(data)))
-        file.write(data)
-
-    # =============================
-    # === Write LWO File Header ===
-    # =============================
-    def write_header(self, file, chunks):
-        chunk_sizes = map(len, chunks)
-        chunk_sizes = functools.reduce(operator.add, chunk_sizes)
-        form_size = chunk_sizes + len(chunks)*8 + len("FORM")
-        file.write(b"FORM")
-        file.write(struct.pack(">L", form_size))
-        file.write(b"LWO2")
-
 
 def menu_func(self, context):
     self.layout.operator(LwoExport.bl_idname, text="Lightwave Object (.lwo)")
