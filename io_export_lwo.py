@@ -53,7 +53,6 @@ Notes:<br>
 v5.5 format.
 """
 
-
 bl_info = {
     "name": "Lightwave Object (LWO) format",
     "author": "Anthony D'Agostino (Scorpius), Gert De Roost, The Dark Mod team",
@@ -65,7 +64,6 @@ bl_info = {
     "wiki_url": "",
     "tracker_url": "",
     "category": "Import-Export"}
-
 
 import bpy, bmesh
 from bpy_extras.io_utils import ExportHelper
@@ -79,16 +77,11 @@ except: io = None
 try: import operator
 except: operator = None
 
-
-
-
 bpy.types.Material.vcmenu = EnumProperty(
             items = [("<none>", "<none>", "<none>")],
             name = "Vertex Color Map",
             description = "LWO export: vertex color map for this material",
             default = "<none>")
-
-
 
 class idTechVertexColors(bpy.types.Panel):
     bl_label = "LwoExport Vertex Color Map"
@@ -103,7 +96,6 @@ class idTechVertexColors(bpy.types.Panel):
     def draw(self, context):
         layout = self.layout
         layout.prop(context.active_object.active_material, 'vcmenu')
-
 
 class MessageOperator(bpy.types.Operator):
     bl_idname = "lwoexport.message"
@@ -144,11 +136,6 @@ class LwoExport(bpy.types.Operator, ExportHelper):
         description = "File path used for exporting the .lwo file",
         maxlen = 1024,
         default = "" )
-
-    option_idtech: BoolProperty(
-            name = "idTech compatible",
-            description = "Saves .lwo compatible with idTech engines",
-            default = True )
 
     option_smooth: BoolProperty(
             name = "Smoothed",
@@ -219,7 +206,6 @@ class LwoExport(bpy.types.Operator, ExportHelper):
 
         box = layout.box()
         box.label( text='Essentials:' )
-        box.prop( self, 'option_idtech' )
         box.prop( self, 'option_applymod' )
         box.prop( self, 'option_subd' )
         box.prop( self, 'option_triangulate' )
@@ -350,10 +336,7 @@ class LwoExport(bpy.types.Operator, ExportHelper):
                     #if meshtools.average_vcols:
                     #   vmap_vc = generate_rgba_vc(mesh)  # per vert
                     #else:
-                    if self.option_idtech:
-                        rgba_vcs = self.generate_rgba_vc(mesh)  # per vert
-                    else:
-                        rgb_vcs = self.generate_rgb_vc(mesh)  # per face
+                    rgba_vcs = self.generate_rgba_vc(mesh)  # per vert
 
                 for j, m in enumerate(matmeshes):
                     if m == mesh:
@@ -361,73 +344,27 @@ class LwoExport(bpy.types.Operator, ExportHelper):
                 layr = self.generate_layr(mesh_object_name_lookup[mesh], layer_index)
                 pnts = self.generate_pnts(mesh)
                 bbox = self.generate_bbox(mesh)
-                if not(self.option_idtech):
-                    if not(self.option_normaddon and 'vertex_normal_list' in mobj):
-                        vnorms = self.generate_vnorms(mesh, None)
-                    else:
-                        vnorms = self.generate_vnorms(mesh, mobj.vertex_normal_list)
                 pols = self.generate_pols(mesh, self.option_subd)
-                if not(self.option_idtech):
-                    if not(self.option_normaddon and 'vertex_normal_list' in mobj):
-                        lnorms = self.generate_lnorms(mesh)
                 ptag = self.generate_ptag(mesh, material_names)
 
                 if mesh.uv_layers:
                     vmad_uvs = self.generate_vmad_uv(mesh)  # per face
 
-                if not(self.option_idtech):
-                    creases = False
-                    for edge in mesh.edges:
-                        if edge.crease > 0:
-                            creases = True
-                            vmad_ew = self.generate_vmad_ew(mesh)
-                            break
-
-                    if mesh.shape_keys:
-                        vmap_morphs = self.generate_vmap_morph(mesh)
-
-                    if len(mobj.vertex_groups):
-                        vmap_weights = self.generate_vmap_weight(mobj)
-
                 self.write_chunk(meshdata, "LAYR", layr); chunks.append(layr)
                 self.write_chunk(meshdata, "PNTS", pnts); chunks.append(pnts)
                 self.write_chunk(meshdata, "BBOX", bbox); chunks.append(bbox)
-                if not(self.option_idtech):
-                    self.write_chunk(meshdata, "VMAP", vnorms); chunks.append(vnorms)
+
                 if mesh.vertex_colors:
-                    if self.option_idtech:
-                        for vmad in rgba_vcs:
-                            self.write_chunk(meshdata, "VMAD", vmad)
-                            chunks.append(vmad)
-                    else:
-                        for vmad in rgb_vcs:
-                            self.write_chunk(meshdata, "VMAD", vmad)
-                            chunks.append(vmad)
+                    for vmad in rgba_vcs:
+                        self.write_chunk(meshdata, "VMAD", vmad)
+                        chunks.append(vmad)
                 self.write_chunk(meshdata, "POLS", pols); chunks.append(pols)
-                if not(self.option_idtech):
-                    if not(self.option_normaddon and 'vertex_normal_list' in mobj):
-                        self.write_chunk(meshdata, "VMAD", lnorms); chunks.append(lnorms)
                 self.write_chunk(meshdata, "PTAG", ptag); chunks.append(ptag)
 
                 if mesh.uv_layers:
                     for vmad in vmad_uvs:
                         self.write_chunk(meshdata, "VMAD", vmad)
                         chunks.append(vmad)
-
-                if not(self.option_idtech):
-                    if creases:
-                        self.write_chunk(meshdata, "VMAD", vmad_ew)
-                        chunks.append(vmad_ew)
-
-                    if len(mobj.vertex_groups):
-                        for vmap in vmap_weights:
-                            self.write_chunk(meshdata, "VMAP", vmap)
-                            chunks.append(vmap)
-
-                    if mesh.shape_keys:
-                        for vmap in vmap_morphs:
-                            self.write_chunk(meshdata, "VMAP", vmap)
-                            chunks.append(vmap)
 
                 layer_index += 1
 
@@ -529,49 +466,6 @@ class LwoExport(bpy.types.Operator, ExportHelper):
             data.write(struct.pack(">fff", x, z, y))
         return data.getvalue()
 
-    # ============================================
-    # === Generate Vertex Normals (VMAP Chunk) ===
-    # ============================================
-    def generate_vnorms(self, mesh, nolist):
-        data = io.BytesIO()
-        name = generate_nstring("vert_normals")
-        data.write(b"NORM")                                     # type
-        data.write(struct.pack(">H", 3))                        # dimension
-        data.write(bytes(name, 'UTF-8'))                        # name
-        for i, v in enumerate(mesh.vertices):
-            if nolist:
-                x, y, z = nolist[i]['normal']
-            else:
-                x, y, z = v.normal
-            x *= self.option_scale
-            y *= self.option_scale
-            z *= self.option_scale
-            data.write(self.generate_vx(i)) # vertex index
-            data.write(struct.pack(">fff", x, z, y))
-        return data.getvalue()
-
-    # ============================================
-    # === Generate Loop Normals (VMAD Chunk) ===
-    # ============================================
-    def generate_lnorms(self, mesh):
-        mesh.calc_normals_split()
-        data = io.BytesIO()
-        name = generate_nstring("vert_normals")
-        data.write(b"NORM")                                     # type
-        data.write(struct.pack(">H", 3))                        # dimension
-        data.write(bytes(name, 'UTF-8'))                        # name
-        for i, p in enumerate(mesh.polygons):
-            for li in p.loop_indices:
-                l = mesh.loops[li]
-                x, y, z = l.normal
-                x *= self.option_scale
-                y *= self.option_scale
-                z *= self.option_scale
-                data.write(self.generate_vx(l.vertex_index)) # vertex index
-                data.write(self.generate_vx(i)) # face index
-                data.write(struct.pack(">fff", x, z, y))
-        return data.getvalue()
-
     # ==========================================
     # === Generate Bounding Box (BBOX Chunk) ===
     # ==========================================
@@ -617,33 +511,6 @@ class LwoExport(bpy.types.Operator, ExportHelper):
 
         return alldata
 
-    # ====================================================
-    # === Generate RGB Vertex Colors (VMAD Chunk) ===
-    # ====================================================
-    def generate_rgb_vc(self, mesh):
-        alldata = []
-        layers = mesh.vertex_colors
-        for l in layers:
-            vcname = generate_nstring(l.name)
-            data = io.BytesIO()
-            data.write(b"RGB ")                                     # type
-            data.write(struct.pack(">H", 3))                        # dimension
-            data.write(bytes(vcname, 'UTF-8')) # name
-
-            found = False
-            for i, p in enumerate(mesh.polygons):
-                p_vi = p.vertices
-                for v, loop in zip(p.vertices, p.loop_indices):
-                    r,g,b = tuple(l.data[loop].color)
-                    data.write(self.generate_vx(v)) # vertex index
-                    data.write(self.generate_vx(i)) # face index
-                    data.write(struct.pack(">fff", r, g, b))
-                    found = True
-            if found:
-                alldata.append(data.getvalue())
-
-        return alldata
-
     # ================================================
     # === Generate Per-Face UV Coords (VMAD Chunk) ===
     # ================================================
@@ -674,76 +541,6 @@ class LwoExport(bpy.types.Operator, ExportHelper):
                     found = True
             if found:
                 alldata.append(data.getvalue())
-
-        return alldata
-
-    # ================================================
-    # === Generate Edge Weights (VMAD Chunk) ===
-    # ================================================
-    def generate_vmad_ew(self, mesh):
-        data = io.BytesIO()
-        data.write(b"WGHT")                                      # type
-        data.write(struct.pack(">H", 1))                         # dimension
-        data.write(bytes(generate_nstring("Edge Weight"), 'UTF-8')) # name
-        face_edge_map = {ek: mesh.edges[i] for i, ek in enumerate(mesh.edge_keys)}
-        for i, p in enumerate(mesh.polygons):
-            vs = list(p.vertices)
-            for ek in p.edge_keys:
-                edge = face_edge_map[ek]
-                if edge.crease == 0:
-                    continue
-                v1, v2 = edge.vertices
-                if vs[vs.index(v1) - 1] == v2:
-                    vi = v1
-                else:
-                    vi = v2
-                data.write(self.generate_vx(vi)) # vertex index
-                data.write(self.generate_vx(i)) # face index
-                data.write(struct.pack(">f", edge.crease))
-
-        return data.getvalue()
-
-    # ================================================
-    # === Generate Endomorphs (VMAP Chunk) ===
-    # ================================================
-    def generate_vmap_morph(self, mesh):
-        alldata = []
-        keyblocks = mesh.shape_keys.key_blocks
-        for kb in keyblocks:
-            emname = generate_nstring(kb.name)
-            data = io.BytesIO()
-            data.write(b"MORF")                                      # type
-            data.write(struct.pack(">H", 3))                         # dimension
-            data.write(bytes(emname, 'UTF-8')) # name
-            for i, v in enumerate(mesh.vertices):
-                x, y, z = kb.data[v.index].co - v.co
-                data.write(self.generate_vx(v.index)) # vertex index
-                data.write(struct.pack(">fff", x, z, y))
-            alldata.append(data.getvalue())
-
-        return alldata
-
-    # ================================================
-    # === Generate Weightmap (VMAP Chunk) ===
-    # ================================================
-    def generate_vmap_weight(self, obj):
-        alldata = []
-        vgroups = obj.vertex_groups
-        for vg in vgroups:
-            vgname = generate_nstring(vg.name)
-            data = io.BytesIO()
-            data.write(b"WGHT")                                      # type
-            data.write(struct.pack(">H", 1))                         # dimension
-            data.write(bytes(vgname, 'UTF-8')) # name
-            for i, v in enumerate(obj.data.vertices):
-                w = 0.0
-                try:
-                    w = vg.weight(v.index)
-                except:
-                    pass
-                data.write(self.generate_vx(v.index)) # vertex index
-                data.write(struct.pack(">f", w))
-            alldata.append(data.getvalue())
 
         return alldata
 
@@ -868,31 +665,6 @@ class LwoExport(bpy.types.Operator, ExportHelper):
         data.write(struct.pack(">H", 6))
         data.write(struct.pack(">fH", spec, 0))
 
-        if not(self.option_idtech):
-            data.write(b"REFL")
-            data.write(struct.pack(">H", 6))
-            data.write(struct.pack(">fH", refl, 0))
-
-            data.write(b"RBLR")
-            data.write(struct.pack(">H", 6))
-            data.write(struct.pack(">fH", rblr, 0))
-
-            data.write(b"TRAN")
-            data.write(struct.pack(">H", 6))
-            data.write(struct.pack(">fH", tran, 0))
-
-            data.write(b"RIND")
-            data.write(struct.pack(">H", 6))
-            data.write(struct.pack(">fH", rind, 0))
-
-            data.write(b"TBLR")
-            data.write(struct.pack(">H", 6))
-            data.write(struct.pack(">fH", tblr, 0))
-
-            data.write(b"TRNL")
-            data.write(struct.pack(">H", 6))
-            data.write(struct.pack(">fH", trnl, 0))
-
         data.write(b"GLOS")
         data.write(struct.pack(">H", 6))
         data.write(struct.pack(">fH", gloss, 0))
@@ -909,133 +681,7 @@ class LwoExport(bpy.types.Operator, ExportHelper):
 
         data.write(b"SMAN")
         data.write(struct.pack(">H", 4))
-        if self.option_idtech:
-            data.write(struct.pack(">f", sman))
-        elif self.option_smooth:
-            data.write(struct.pack(">f", sman))
-        else:
-            data.write(struct.pack(">f", 0))
-
-#       data.write(b"SIDE")
-#       data.write(struct.pack(">H", 2))
-#       data.write(struct.pack(">H", 3))
-
-        if not(self.option_idtech):
-            # Check if the material contains any image maps
-            def make_ord(nbloks, index):
-                i = 8
-                d = 16
-                while i < 128:
-                    if i >= nbloks:
-                        break;
-                    d /= 2
-                    i *= 2
-                ordinal  = int(128 + index * d)
-                return ordinal
-
-            if material:
-                mtextures = list(material.texture_slots)    # Get a list of textures linked to the material
-                for mtex in mtextures:
-                    if mtex:
-                        tex = mtex.texture
-                        if (tex.type == 'IMAGE'):   # Check if the texture is of type "IMAGE"
-                            path = tex.image.filepath
-                            if path in self.clippaths:
-                                clipid = self.clippaths.index(path)
-                            else:
-                                self.clippaths.append(path)
-                                clipid = self.currclipid
-                                self.clips.append(self.generate_clip(path))
-
-                            def write_tex_blok(data, channel, opac):
-                                data.write(b"BLOK")     # Surface BLOK header
-
-                                # IMAP subchunk (image map sub header)
-                                data_blok = io.BytesIO()
-                                data_blok.write(b"IMAP")
-                                data_tmp = io.BytesIO()
-                                data_tmp.write(struct.pack(">B", make_ord(len(mtextures), clipid)))  # ordinal string
-                                data_tmp.write(struct.pack(">B", 0))
-                                data_tmp.write(b"CHAN")
-                                data_tmp.write(struct.pack(">H", 4))
-                                data_tmp.write(bytes(channel, 'UTF-8'))
-                                opactype = 0
-                                if mtex.blend_type == 'SUBTRACT':
-                                    opactype = 1
-                                elif mtex.blend_type == 'DIFFERENCE':
-                                    opactype = 2
-                                elif mtex.blend_type == 'MULTIPLY':
-                                    opactype = 3
-                                elif mtex.blend_type == 'DIVIDE':
-                                    opactype = 4
-                                elif mtex.blend_type == 'ADD':
-                                    opactype = 7
-                                data_tmp.write(b"OPAC")               # Hardcoded texture layer opacity
-                                data_tmp.write(struct.pack(">H", 8))
-                                data_tmp.write(struct.pack(">H", opactype))
-                                data_tmp.write(struct.pack(">f", opac))
-                                data_tmp.write(struct.pack(">H", 0))
-                                data_tmp.write(b"ENAB")
-                                data_tmp.write(struct.pack(">HH", 2, 1))  # 1 = texture layer enabled
-                                nega = mtex.invert
-                                data_tmp.write(b"NEGA")
-                                data_tmp.write(struct.pack(">HH", 2, nega))  # Disable negative image (1 = invert RGB values)
-                                data_tmp.write(b"AXIS")
-                                data_tmp.write(struct.pack(">HH", 2, 1))
-                                data_blok.write(struct.pack(">H", len(data_tmp.getvalue())))
-                                data_blok.write(data_tmp.getvalue())
-
-                                # IMAG subchunk
-                                data_blok.write(b"IMAG")
-                                data_blok.write(struct.pack(">HH", 2, clipid))
-                                data_blok.write(b"PROJ")
-                                data_blok.write(struct.pack(">HH", 2, 5)) # UV projection
-
-                                data_blok.write(b"VMAP")
-                                uvname = generate_nstring(mtex.uv_layer)
-                                data_blok.write(struct.pack(">H", len(uvname)))
-                                data_blok.write(bytes(uvname, 'UTF-8'))
-
-                                data.write(struct.pack(">H", len(data_blok.getvalue())))
-                                data.write(data_blok.getvalue())
-
-                                return data
-
-                            if mtex.use_map_color_diffuse:
-                                opac = mtex.diffuse_color_factor
-                                write_tex_blok(data, "COLR", opac)
-
-                            if mtex.use_map_diffuse:
-                                opac = mtex.diffuse_factor
-                                write_tex_blok(data, "DIFF", opac)
-
-                            if mtex.use_map_emit:
-                                opac = mtex.emit_factor
-                                write_tex_blok(data, "LUMI", opac)
-
-                            if mtex.use_map_specular:
-                                opac = mtex.specular_factor
-                                write_tex_blok(data, "SPEC", opac)
-
-                            if mtex.use_map_hardness:
-                                opac = mtex.hardness_factor
-                                write_tex_blok(data, "GLOS", opac)
-
-                            if mtex.use_map_raymir:
-                                opac = mtex.raymir_factor
-                                write_tex_blok(data, "REFL", opac)
-
-                            if mtex.use_map_alpha:
-                                opac = mtex.alpha_factor
-                                write_tex_blok(data, "TRAN", opac)
-
-                            if mtex.use_map_translucency:
-                                opac = mtex.translucency_factor
-                                write_tex_blok(data, "TRNL", opac)
-
-    #                       if mtex.use_map_normal:
-    #                           opac = mtex.normal_factor
-    #                           write_tex_blok(data, "BUMP", opac)
+        data.write(struct.pack(">f", sman))
 
         return data.getvalue()
 
@@ -1069,36 +715,6 @@ class LwoExport(bpy.types.Operator, ExportHelper):
         gloss = round(gloss, 1)
         data.write(struct.pack(">fH", gloss, 0))
 
-        return data.getvalue()
-
-    # ==================================================
-    # === Generate Thumbnail Icon Image (ICON Chunk) ===
-    # ==================================================
-    """
-    def generate_icon(self):
-        data = io.BytesIO()
-        file = open("f:/obj/radiosity/lwo2_icon.tga", "rb") # 60x60 uncompressed TGA
-        file.read(18)
-        icon_data = file.read(3600) # ?
-        file.close()
-        data.write(struct.pack(">HH", 0, 60))
-        data.write(icon_data)
-        #print len(icon_data)
-        return data.getvalue()
-    """
-
-    # ===============================================
-    # === Generate CLIP chunk with STIL subchunks ===
-    # ===============================================
-    def generate_clip(self, pathname):
-        data = io.BytesIO()
-        pathname = pathname[0:2] + pathname.replace("\\", "/")[2:]  # Convert to Modo standard path
-        imagename = generate_nstring(pathname)
-        data.write(struct.pack(">L", self.currclipid))                      # CLIP sequence/id
-        data.write(b"STIL")                                         # STIL image
-        data.write(struct.pack(">H", len(imagename)))               # Size of image name
-        data.write(bytes(imagename, 'UTF-8'))
-        self.currclipid += 1
         return data.getvalue()
 
     # ===================
