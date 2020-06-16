@@ -113,6 +113,9 @@ class MessageOperator(bpy.types.Operator):
         row.label(text = '', icon = "ERROR")
         row.label(text="Error | This exporter requires a full python installation")
 
+# LWO export helper functions
+# -----------------------------------------------------------------------------
+
 def generate_nstring(string):
     "Generate a null terminated string with an even number of bytes"
     if len(string) % 2 == 0:  # even
@@ -134,6 +137,47 @@ def write_header(dest_file, chunks):
     dest_file.write(b"FORM")
     dest_file.write(struct.pack(">L", form_size))
     dest_file.write(b"LWO2")
+
+def generate_vx(index):
+    """Generate and return an LWO-formatted index
+
+    The index is packed either as 16 bits or 32 bits depending on its numerical
+    value."""
+
+    if index < 0xFF00:
+        return struct.pack(">H", index)                 # 2-byte index
+    else:
+        return struct.pack(">L", index | 0xFF000000)    # 4-byte index
+
+def generate_vertex_colors(mesh):
+    "Generate and return vertex color block"
+
+    alldata = []
+
+    # For each vertex color layer
+    for layer in mesh.vertex_colors:
+
+        # Construct output stream for this layer
+        data = io.BytesIO()
+        data.write(b"RGBA")                                      # type
+        data.write(struct.pack(">H", 4))                         # dimension
+        data.write(bytes(generate_nstring(layer.name), 'UTF-8')) # name
+
+        found = False
+        for face_idx, face in enumerate(mesh.polygons):
+            for vert_idx, loop in zip(face.vertices, face.loop_indices):
+                (r, g, b, a) = layer.data[loop].color
+                data.write(generate_vx(vert_idx))
+                data.write(generate_vx(face_idx))
+                data.write(struct.pack(">ffff", r, g, b, a))
+                found = True
+        if found:
+            alldata.append(data.getvalue())
+
+    return alldata
+
+# Main export class
+# -----------------------------------------------------------------------------
 
 class LwoExport(bpy.types.Operator, ExportHelper):
     "Main exporter class"
@@ -277,6 +321,8 @@ class LwoExport(bpy.types.Operator, ExportHelper):
         # Certain operations only work on OBJECT mode
         bpy.ops.object.mode_set(mode='OBJECT')
 
+        # Create duplicates of objects to export, so we can perform operations
+        # like removing doubles without modifying the original objects
         for obj in objects:
             if obj.type != 'MESH':
                 continue
@@ -318,7 +364,7 @@ class LwoExport(bpy.types.Operator, ExportHelper):
                 if not(self.option_batch):
                     self.meshes.append(mesh)
 
-
+        # Export each duplicated object
         for obj in objdups:
             if (self.option_batch):
                 self.meshes = [obj.data]
@@ -335,15 +381,10 @@ class LwoExport(bpy.types.Operator, ExportHelper):
 
             layer_index = 0
 
+            # Generate LWO chunks
             for i, mesh in enumerate(self.meshes):
                 if not(self.option_batch):
                     mobj = objdups[i]
-
-                if mesh.vertex_colors:
-                    #if meshtools.average_vcols:
-                    #   vmap_vc = generate_rgba_vc(mesh)  # per vert
-                    #else:
-                    rgba_vcs = self.generate_rgba_vc(mesh)  # per vert
 
                 for j, m in enumerate(matmeshes):
                     if m == mesh:
@@ -362,7 +403,8 @@ class LwoExport(bpy.types.Operator, ExportHelper):
                 write_chunk(meshdata, "BBOX", bbox); chunks.append(bbox)
 
                 if mesh.vertex_colors:
-                    for vmad in rgba_vcs:
+                    vcs = generate_vertex_colors(mesh)  # per vert
+                    for vmad in vcs:
                         write_chunk(meshdata, "VMAD", vmad)
                         chunks.append(vmad)
                 write_chunk(meshdata, "POLS", pols); chunks.append(pols)
@@ -386,18 +428,16 @@ class LwoExport(bpy.types.Operator, ExportHelper):
                 filename += (os.sep + object_name_lookup_orig[obj].replace('.', '_'))
             if not filename.lower().endswith('.lwo'):
                 filename += '.lwo'
-            outfile = open(filename, "wb")
 
             # Write generated chunk data to the output file
-            write_header(outfile, chunks)
-            write_chunk(outfile, "TAGS", tags)
-            outfile.write(meshdata.getvalue()); meshdata.close()
-            for clip in self.clips:
-                write_chunk(outfile, "CLIP", clip)
-            for surf in surfs:
-                write_chunk(outfile, "SURF", surf)
-
-            outfile.close()
+            with open(filename, "wb") as outfile:
+                write_header(outfile, chunks)
+                write_chunk(outfile, "TAGS", tags)
+                outfile.write(meshdata.getvalue()); meshdata.close()
+                for clip in self.clips:
+                    write_chunk(outfile, "CLIP", clip)
+                for surf in surfs:
+                    write_chunk(outfile, "SURF", surf)
 
             bpy.ops.object.select_all(action='DESELECT')
             bpy.context.view_layer.objects.active = obj
@@ -498,34 +538,6 @@ class LwoExport(bpy.types.Operator, ExportHelper):
         data.write(struct.pack(">6f", min(xx), min(zz), min(yy), max(xx), max(zz), max(yy)))
         return data.getvalue()
 
-    # ====================================================
-    # === Generate RGBA Vertex Colors (VMAD Chunk) ===
-    # ====================================================
-    def generate_rgba_vc(self, mesh):
-        alldata = []
-
-        # For each vertex color layer
-        for layer in mesh.vertex_colors:
-
-            # Construct output stream for this layer
-            data = io.BytesIO()
-            data.write(b"RGBA")                                      # type
-            data.write(struct.pack(">H", 4))                         # dimension
-            data.write(bytes(generate_nstring(layer.name), 'UTF-8')) # name
-
-            found = False
-            for face_idx, face in enumerate(mesh.polygons):
-                for vert_idx, loop in zip(face.vertices, face.loop_indices):
-                    (r, g, b, a) = layer.data[loop].color
-                    data.write(self.generate_vx(vert_idx))
-                    data.write(self.generate_vx(face_idx))
-                    data.write(struct.pack(">ffff", r, g, b, a))
-                    found = True
-            if found:
-                alldata.append(data.getvalue())
-
-        return alldata
-
     # ================================================
     # === Generate Per-Face UV Coords (VMAD Chunk) ===
     # ================================================
@@ -550,24 +562,14 @@ class LwoExport(bpy.types.Operator, ExportHelper):
                     youv = l.data[loop].uv
                     if l.data[prevl].uv == youv == l.data[nextl].uv:
                         continue
-                    data.write(self.generate_vx(v)) # vertex index
-                    data.write(self.generate_vx(i)) # face index
+                    data.write(generate_vx(v)) # vertex index
+                    data.write(generate_vx(i)) # face index
                     data.write(struct.pack(">ff", youv[0], youv[1]))
                     found = True
             if found:
                 alldata.append(data.getvalue())
 
         return alldata
-
-    # ======================================
-    # === Generate Variable-Length Index ===
-    # ======================================
-    def generate_vx(self, index):
-        if index < 0xFF00:
-            value = struct.pack(">H", index)                 # 2-byte index
-        else:
-            value = struct.pack(">L", index | 0xFF000000)    # 4-byte index
-        return value
 
     # ===================================
     # === Generate Faces (POLS Chunk) ===
@@ -583,14 +585,14 @@ class LwoExport(bpy.types.Operator, ExportHelper):
             numfaceverts = len(p.vertices)
             p_vi = p.vertices
             for j in range(numfaceverts-1, -1, -1):         # Reverse order
-                data.write(self.generate_vx(p_vi[j]))
+                data.write(generate_vx(p_vi[j]))
         bm = bmesh.new()
         bm.from_mesh(mesh)
         for e in bm.edges:
             if len(e.link_faces) == 0:
                 data.write(struct.pack(">H", 2))
-                data.write(self.generate_vx(e.verts[0].index))
-                data.write(self.generate_vx(e.verts[1].index))
+                data.write(generate_vx(e.verts[0].index))
+                data.write(generate_vx(e.verts[1].index))
         bm.to_mesh(mesh)
 
         return data.getvalue()
@@ -607,10 +609,10 @@ class LwoExport(bpy.types.Operator, ExportHelper):
                 matname = mesh.materials[matindex].name
                 surfindex = material_names.index(matname)
 
-                data.write(self.generate_vx(poly.index))
+                data.write(generate_vx(poly.index))
                 data.write(struct.pack(">H", surfindex))
             else:
-                data.write(self.generate_vx(poly.index))
+                data.write(generate_vx(poly.index))
                 data.write(struct.pack(">H", 0))
         return data.getvalue()
 
