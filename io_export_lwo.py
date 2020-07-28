@@ -176,6 +176,121 @@ def generate_vertex_colors(mesh):
 
     return alldata
 
+def generate_mesh_surface(mesh, material_name):
+    "Generate and return mesh surface block"
+
+    data = io.BytesIO()
+    data.write(bytes(generate_nstring(material_name), 'UTF-8'))
+
+    try:
+        material = bpy.data.materials.get(material_name)
+        R,G,B = material.diffuse_color[0], material.diffuse_color[1], material.diffuse_color[2]
+        diff = material.diffuse_intensity
+        lumi = material.emit
+        spec = material.specular_intensity
+        gloss = math.sqrt((material.specular_hardness - 4) / 400)
+        if material.raytrace_mirror.use:
+            refl = material.raytrace_mirror.reflect_factor
+        else:
+            refl = 0.0
+        rblr = 1.0 - material.raytrace_mirror.gloss_factor
+        rind = material.raytrace_transparency.ior
+        tran = 1.0 - material.alpha
+        tblr = 1.0 - material.raytrace_transparency.gloss_factor
+        trnl = material.translucency
+        if mesh.use_auto_smooth:
+            sman = mesh.auto_smooth_angle
+        else:
+            sman = 0.0
+    except:
+        material = None
+
+        R=G=B = 1.0
+        diff = 1.0
+        lumi = 0.0
+        spec = 0.2
+        hard = 0.0
+        gloss = 0.0
+        refl = 0.0
+        rblr = 0.0
+        rind = 1.0
+        tran = 0.0
+        tblr = 0.0
+        trnl = 0.0
+        sman = 0.0
+
+    data.write(b"COLR")
+    data.write(struct.pack(">H", 0))
+
+    data.write(b"COLR")
+    data.write(struct.pack(">H", 14))
+    data.write(struct.pack(">fffH", R, G, B, 0))
+
+    data.write(b"DIFF")
+    data.write(struct.pack(">H", 6))
+    data.write(struct.pack(">fH", diff, 0))
+
+    data.write(b"LUMI")
+    data.write(struct.pack(">H", 6))
+    data.write(struct.pack(">fH", lumi, 0))
+
+    data.write(b"SPEC")
+    data.write(struct.pack(">H", 6))
+    data.write(struct.pack(">fH", spec, 0))
+
+    data.write(b"GLOS")
+    data.write(struct.pack(">H", 6))
+    data.write(struct.pack(">fH", gloss, 0))
+
+    if material:
+        vcname = material.vcmenu
+        if vcname != "<none>":
+            data.write(b"VCOL")
+            data_tmp = io.BytesIO()
+            data_tmp.write(struct.pack(">fH4s", 1.0, 0, b"RGBA"))  # intensity, envelope, type
+            data_tmp.write(bytes(generate_nstring(vcname), 'UTF-8')) # name
+            data.write(struct.pack(">H", len(data_tmp.getvalue())))
+            data.write(data_tmp.getvalue())
+
+    data.write(b"SMAN")
+    data.write(struct.pack(">H", 4))
+    data.write(struct.pack(">f", sman))
+
+    return data.getvalue()
+
+DEFAULT_NAME = "Blender Default"
+
+def generate_default_surf(self):
+    "Generate a default mesh surface block"
+
+    data = io.BytesIO()
+    material_name = DEFAULT_NAME
+    data.write(bytes(generate_nstring(material_name), 'UTF-8'))
+
+    data.write(b"COLR")
+    data.write(struct.pack(">H", 14))
+    data.write(struct.pack(">fffH", 0.9, 0.9, 0.9, 0))
+
+    data.write(b"DIFF")
+    data.write(struct.pack(">H", 6))
+    data.write(struct.pack(">fH", 0.8, 0))
+
+    data.write(b"LUMI")
+    data.write(struct.pack(">H", 6))
+    data.write(struct.pack(">fH", 0, 0))
+
+    data.write(b"SPEC")
+    data.write(struct.pack(">H", 6))
+    data.write(struct.pack(">fH", 0.4, 0))
+
+    data.write(b"GLOS")
+    data.write(struct.pack(">H", 6))
+    gloss = 50 / (255/2.0)
+    gloss = round(gloss, 1)
+    data.write(struct.pack(">fH", gloss, 0))
+
+    return data.getvalue()
+
 # Main export class
 # -----------------------------------------------------------------------------
 
@@ -295,7 +410,6 @@ class LwoExport(bpy.types.Operator, ExportHelper):
 
         self.context = context
         self.VCOL_NAME = "Per-Face Vertex Colors"
-        self.DEFAULT_NAME = "Blender Default"
 
         if struct and io and operator:
             self.write(self.filepath)
@@ -491,12 +605,10 @@ class LwoExport(bpy.types.Operator, ExportHelper):
     # === Generate Surface ===
     # ========================
     def generate_surface(self, mesh, name):
-        #if name.find("\251 Per-") == 0:
-        #   return generate_vcol_surf(mesh)
-        if name == self.DEFAULT_NAME:
-            return self.generate_default_surf()
+        if name == DEFAULT_NAME:
+            return generate_default_surf()
         else:
-            return self.generate_surf(mesh, name)
+            return generate_mesh_surface(mesh, name)
 
     # ===================================
     # === Generate Layer (LAYR Chunk) ===
@@ -616,124 +728,6 @@ class LwoExport(bpy.types.Operator, ExportHelper):
             else:
                 data.write(generate_vx(poly.index))
                 data.write(struct.pack(">H", 0))
-        return data.getvalue()
-
-    # ================================================
-    # === Generate Surface Definition (SURF Chunk) ===
-    # ================================================
-    def generate_surf(self, mesh, material_name):
-        data = io.BytesIO()
-        data.write(bytes(generate_nstring(material_name), 'UTF-8'))
-
-        try:
-            material = bpy.data.materials.get(material_name)
-            R,G,B = material.diffuse_color[0], material.diffuse_color[1], material.diffuse_color[2]
-            diff = material.diffuse_intensity
-            lumi = material.emit
-            spec = material.specular_intensity
-            gloss = math.sqrt((material.specular_hardness - 4) / 400)
-            if material.raytrace_mirror.use:
-                refl = material.raytrace_mirror.reflect_factor
-            else:
-                refl = 0.0
-            rblr = 1.0 - material.raytrace_mirror.gloss_factor
-            rind = material.raytrace_transparency.ior
-            tran = 1.0 - material.alpha
-            tblr = 1.0 - material.raytrace_transparency.gloss_factor
-            trnl = material.translucency
-            if mesh.use_auto_smooth:
-                sman = mesh.auto_smooth_angle
-            else:
-                sman = 0.0
-
-
-        except:
-            material = None
-
-            R=G=B = 1.0
-            diff = 1.0
-            lumi = 0.0
-            spec = 0.2
-            hard = 0.0
-            gloss = 0.0
-            refl = 0.0
-            rblr = 0.0
-            rind = 1.0
-            tran = 0.0
-            tblr = 0.0
-            trnl = 0.0
-            sman = 0.0
-
-
-        data.write(b"COLR")
-        data.write(struct.pack(">H", 0))
-
-        data.write(b"COLR")
-        data.write(struct.pack(">H", 14))
-        data.write(struct.pack(">fffH", R, G, B, 0))
-
-        data.write(b"DIFF")
-        data.write(struct.pack(">H", 6))
-        data.write(struct.pack(">fH", diff, 0))
-
-        data.write(b"LUMI")
-        data.write(struct.pack(">H", 6))
-        data.write(struct.pack(">fH", lumi, 0))
-
-        data.write(b"SPEC")
-        data.write(struct.pack(">H", 6))
-        data.write(struct.pack(">fH", spec, 0))
-
-        data.write(b"GLOS")
-        data.write(struct.pack(">H", 6))
-        data.write(struct.pack(">fH", gloss, 0))
-
-        if material:
-            vcname = material.vcmenu
-            if vcname != "<none>":
-                data.write(b"VCOL")
-                data_tmp = io.BytesIO()
-                data_tmp.write(struct.pack(">fH4s", 1.0, 0, b"RGBA"))  # intensity, envelope, type
-                data_tmp.write(bytes(generate_nstring(vcname), 'UTF-8')) # name
-                data.write(struct.pack(">H", len(data_tmp.getvalue())))
-                data.write(data_tmp.getvalue())
-
-        data.write(b"SMAN")
-        data.write(struct.pack(">H", 4))
-        data.write(struct.pack(">f", sman))
-
-        return data.getvalue()
-
-    # =============================================
-    # === Generate Default Surface (SURF Chunk) ===
-    # =============================================
-    def generate_default_surf(self):
-        data = io.BytesIO()
-        material_name = self.DEFAULT_NAME
-        data.write(bytes(generate_nstring(material_name), 'UTF-8'))
-
-        data.write(b"COLR")
-        data.write(struct.pack(">H", 14))
-        data.write(struct.pack(">fffH", 0.9, 0.9, 0.9, 0))
-
-        data.write(b"DIFF")
-        data.write(struct.pack(">H", 6))
-        data.write(struct.pack(">fH", 0.8, 0))
-
-        data.write(b"LUMI")
-        data.write(struct.pack(">H", 6))
-        data.write(struct.pack(">fH", 0, 0))
-
-        data.write(b"SPEC")
-        data.write(struct.pack(">H", 6))
-        data.write(struct.pack(">fH", 0.4, 0))
-
-        data.write(b"GLOS")
-        data.write(struct.pack(">H", 6))
-        gloss = 50 / (255/2.0)
-        gloss = round(gloss, 1)
-        data.write(struct.pack(">fH", gloss, 0))
-
         return data.getvalue()
 
 def menu_func(self, context):
