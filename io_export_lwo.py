@@ -195,10 +195,16 @@ class LwoExport(bpy.types.Operator, ExportHelper):
         maxlen = 1024,
         default = "" )
 
-    option_smooth: BoolProperty(
-            name = "Smoothed",
-            description = "Save entire mesh as smoothed",
-            default = False )
+    option_smooth: EnumProperty(
+            name = "Smooth",
+            description = "How to smooth exported mesh data",
+            items = [
+                ('NONE', 'None', 'No smoothing'),
+                ('FULL', 'Full', 'Entire object is smoothed'),
+                ('FROM_OBJECT', 'As rendered',
+                 'Export smoothing status and autosmooth angles from Blender object')
+            ],
+            default = 'FROM_OBJECT' )
 
     option_subd: BoolProperty(
             name = "Export as subpatched",
@@ -245,11 +251,6 @@ class LwoExport(bpy.types.Operator, ExportHelper):
             description = "A separate .lwo file for every selected object",
             default = False )
 
-    option_normaddon: BoolProperty(
-            name = "Use \"Recalc Vert Normals\" addon data",
-            description = "Export the vertex normals created with the \"Recalc Vert Normals\" addon",
-            default = False )
-
     option_scale: FloatProperty(
             name = "Scale",
             description = "Object scaling factor (default: 1.0)",
@@ -263,22 +264,23 @@ class LwoExport(bpy.types.Operator, ExportHelper):
         layout = self.layout
 
         box = layout.box()
-        box.label( text='Essentials:' )
+
         box.prop( self, 'option_applymod' )
         box.prop( self, 'option_subd' )
         box.prop( self, 'option_triangulate' )
         box.prop( self, 'option_normals' )
         box.prop( self, 'option_remove_doubles' )
         box.prop( self, 'option_smooth' )
+
+        box.separator()
         box.label( text="Transformations:" )
         box.prop( self, 'option_apply_scale' )
         box.prop( self, 'option_apply_rotation' )
         box.prop( self, 'option_apply_location' )
+
         box.label( text="Advanced:" )
         box.prop( self, 'option_scale' )
         box.prop( self, 'option_batch')
-        if 'vertex_normal_list' in context.active_object:
-            box.prop( self, 'option_normaddon')
 
     @classmethod
     def poll(cls, context):
