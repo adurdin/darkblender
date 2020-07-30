@@ -176,88 +176,6 @@ def generate_vertex_colors(mesh):
 
     return alldata
 
-def generate_mesh_surface(mesh, material_name):
-    "Generate and return mesh surface block"
-
-    data = io.BytesIO()
-    data.write(bytes(generate_nstring(material_name), 'UTF-8'))
-
-    try:
-        material = bpy.data.materials.get(material_name)
-        R,G,B = material.diffuse_color[0], material.diffuse_color[1], material.diffuse_color[2]
-        diff = material.diffuse_intensity
-        lumi = material.emit
-        spec = material.specular_intensity
-        gloss = math.sqrt((material.specular_hardness - 4) / 400)
-        if material.raytrace_mirror.use:
-            refl = material.raytrace_mirror.reflect_factor
-        else:
-            refl = 0.0
-        rblr = 1.0 - material.raytrace_mirror.gloss_factor
-        rind = material.raytrace_transparency.ior
-        tran = 1.0 - material.alpha
-        tblr = 1.0 - material.raytrace_transparency.gloss_factor
-        trnl = material.translucency
-        if mesh.use_auto_smooth:
-            sman = mesh.auto_smooth_angle
-        else:
-            sman = 0.0
-    except:
-        material = None
-
-        R=G=B = 1.0
-        diff = 1.0
-        lumi = 0.0
-        spec = 0.2
-        hard = 0.0
-        gloss = 0.0
-        refl = 0.0
-        rblr = 0.0
-        rind = 1.0
-        tran = 0.0
-        tblr = 0.0
-        trnl = 0.0
-        sman = 0.0
-
-    data.write(b"COLR")
-    data.write(struct.pack(">H", 0))
-
-    data.write(b"COLR")
-    data.write(struct.pack(">H", 14))
-    data.write(struct.pack(">fffH", R, G, B, 0))
-
-    data.write(b"DIFF")
-    data.write(struct.pack(">H", 6))
-    data.write(struct.pack(">fH", diff, 0))
-
-    data.write(b"LUMI")
-    data.write(struct.pack(">H", 6))
-    data.write(struct.pack(">fH", lumi, 0))
-
-    data.write(b"SPEC")
-    data.write(struct.pack(">H", 6))
-    data.write(struct.pack(">fH", spec, 0))
-
-    data.write(b"GLOS")
-    data.write(struct.pack(">H", 6))
-    data.write(struct.pack(">fH", gloss, 0))
-
-    if material:
-        vcname = material.vcmenu
-        if vcname != "<none>":
-            data.write(b"VCOL")
-            data_tmp = io.BytesIO()
-            data_tmp.write(struct.pack(">fH4s", 1.0, 0, b"RGBA"))  # intensity, envelope, type
-            data_tmp.write(bytes(generate_nstring(vcname), 'UTF-8')) # name
-            data.write(struct.pack(">H", len(data_tmp.getvalue())))
-            data.write(data_tmp.getvalue())
-
-    data.write(b"SMAN")
-    data.write(struct.pack(">H", 4))
-    data.write(struct.pack(">f", sman))
-
-    return data.getvalue()
-
 DEFAULT_NAME = "Blender Default"
 
 def generate_default_surf(self):
@@ -311,69 +229,70 @@ class LwoExport(bpy.types.Operator, ExportHelper):
         default = "" )
 
     option_smooth: EnumProperty(
-            name = "Smooth",
-            description = "How to smooth exported mesh data",
-            items = [
-                ('NONE', 'None', 'No smoothing'),
-                ('FULL', 'Full', 'Entire object is smoothed'),
-                ('FROM_OBJECT', 'As rendered',
-                 'Export smoothing status and autosmooth angles from Blender object')
-            ],
-            default = 'FROM_OBJECT' )
+        name = "Smooth",
+        description = "How to smooth exported mesh data",
+        items = [
+            ('NONE', 'None', 'No smoothing information exported'),
+            ('FULL', 'Full', 'Entire object is smoothed'),
+            ('FROM_OBJECT', 'Use Autosmooth settings',
+             'Use Autosmooth checkbox and angle threshold to determine '
+             'smoothing of LWO object')
+        ],
+        default = 'FROM_OBJECT' )
 
     option_subd: BoolProperty(
-            name = "Export as subpatched",
-            description = "Export mesh data as subpatched",
-            default = False )
+        name = "Export as subpatched",
+        description = "Export mesh data as subpatched",
+        default = False )
 
     option_applymod: BoolProperty(
-            name = "Apply modifiers",
-            description = "Applies modifiers before exporting",
-            default = True )
+        name = "Apply modifiers",
+        description = "Applies modifiers before exporting",
+        default = True )
 
     option_triangulate: BoolProperty(
-            name = "Triangulate",
-            description = "Triangulates all exportable objects",
-            default = True )
+        name = "Triangulate",
+        description = "Triangulates all exportable objects",
+        default = True )
 
     option_normals: BoolProperty(
-            name = "Recalculate Normals",
-            description = "Recalculate normals before exporting",
-            default = False )
+        name = "Recalculate Normals",
+        description = "Recalculate normals before exporting",
+        default = False )
 
     option_remove_doubles: BoolProperty(
-            name = "Remove Doubles",
-            description = "Remove any duplicate vertices before exporting",
-            default = False )
+        name = "Remove Doubles",
+        description = "Remove any duplicate vertices before exporting",
+        default = False )
 
     option_apply_scale: BoolProperty(
-            name = "Scale",
-            description = "Apply scale transformation",
-            default = True )
+        name = "Scale",
+        description = "Apply scale transformation",
+        default = True )
 
     option_apply_location: BoolProperty(
-            name = "Location",
-            description = "Apply location transformation",
-            default = True )
+        name = "Location",
+        description = "Apply location transformation",
+        default = True )
 
     option_apply_rotation: BoolProperty(
-            name = "Rotation",
-            description = "Apply rotation transformation",
-            default = True )
+        name = "Rotation",
+        description = "Apply rotation transformation",
+        default = True )
 
     option_batch: BoolProperty(
-            name = "Batch Export",
-            description = "A separate .lwo file for every selected object",
-            default = False )
+        name = "Batch Export",
+        description = "A separate .lwo file for every selected object",
+        default = False )
 
     option_scale: FloatProperty(
-            name = "Scale",
-            description = "Object scaling factor (default: 1.0)",
-            min = 0.01,
-            max = 1000.0,
-            soft_min = 0.01,
-            soft_max = 1000.0,
-            default = 1.0 )
+        name = "Scale",
+        description = "Object scaling factor (default: 1.0)",
+        min = 0.01,
+        max = 1000.0,
+        soft_min = 0.01,
+        soft_max = 1000.0,
+        default = 1.0 )
 
     def draw( self, context ):
         layout = self.layout
@@ -601,6 +520,68 @@ class LwoExport(bpy.types.Operator, ExportHelper):
         else:
             return generate_nstring('')
 
+    def generate_mesh_surface(self, mesh, material_name):
+        "Generate and return mesh surface block"
+
+        data = io.BytesIO()
+        data.write(bytes(generate_nstring(material_name), 'UTF-8'))
+
+        # Extract basic material information
+        try:
+            material = bpy.data.materials.get(material_name)
+            R,G,B = material.diffuse_color[0], material.diffuse_color[1], material.diffuse_color[2]
+            spec = material.specular_intensity
+        except Exception as e:
+            print("generate_mesh_surface() caught exception: {}".format(e))
+            material = None
+            spec = 0.0
+            R=G=B = 1.0
+
+        # Extract smoothing angle
+        if self.option_smooth == 'FULL':
+            sman = math.pi
+        elif mesh.use_auto_smooth:
+            sman = mesh.auto_smooth_angle
+        else:
+            sman = 0.0
+
+        data.write(b"COLR")
+        data.write(struct.pack(">H", 0))
+
+        data.write(b"COLR")
+        data.write(struct.pack(">H", 14))
+        data.write(struct.pack(">fffH", R, G, B, 0))
+
+        data.write(b"DIFF")
+        data.write(struct.pack(">H", 6))
+        data.write(struct.pack(">fH", 1.0, 0))
+
+        data.write(b"LUMI")
+        data.write(struct.pack(">H", 6))
+        data.write(struct.pack(">fH", 0.0, 0))
+
+        data.write(b"SPEC")
+        data.write(struct.pack(">H", 6))
+        data.write(struct.pack(">fH", spec, 0))
+
+        if material:
+            vcname = material.vcmenu
+            if vcname != "<none>":
+                data.write(b"VCOL")
+                data_tmp = io.BytesIO()
+                data_tmp.write(struct.pack(">fH4s", 1.0, 0, b"RGBA"))  # intensity, envelope, type
+                data_tmp.write(bytes(generate_nstring(vcname), 'UTF-8')) # name
+                data.write(struct.pack(">H", len(data_tmp.getvalue())))
+                data.write(data_tmp.getvalue())
+
+        # Write smoothing information if required
+        if self.option_smooth != 'NONE':
+            data.write(b"SMAN")
+            data.write(struct.pack(">H", 4))
+            data.write(struct.pack(">f", sman))
+
+        return data.getvalue()
+
     # ========================
     # === Generate Surface ===
     # ========================
@@ -608,7 +589,7 @@ class LwoExport(bpy.types.Operator, ExportHelper):
         if name == DEFAULT_NAME:
             return generate_default_surf()
         else:
-            return generate_mesh_surface(mesh, name)
+            return self.generate_mesh_surface(mesh, name)
 
     # ===================================
     # === Generate Layer (LAYR Chunk) ===
