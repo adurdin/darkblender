@@ -77,42 +77,6 @@ except: io = None
 try: import operator
 except: operator = None
 
-bpy.types.Material.vcmenu = EnumProperty(
-            items = [("<none>", "<none>", "<none>")],
-            name = "Vertex Color Map",
-            description = "LWO export: vertex color map for this material",
-            default = "<none>")
-
-class idTechVertexColors(bpy.types.Panel):
-    bl_label = "LwoExport Vertex Color Map"
-    bl_space_type = "PROPERTIES"
-    bl_region_type = "WINDOW"
-    bl_context = "material"
-
-    @classmethod
-    def poll(self, context):
-        return context.active_object.active_material!=None
-
-    def draw(self, context):
-        layout = self.layout
-        layout.prop(context.active_object.active_material, 'vcmenu')
-
-class MessageOperator(bpy.types.Operator):
-    bl_idname = "lwoexport.message"
-    bl_label = "Saved"
-
-    def invoke(self, context, event):
-
-        wm = context.window_manager
-        return wm.invoke_popup(self, width=500, height=20)
-
-    def draw(self, context):
-
-        layout = self.layout
-        row = layout.row()
-        row.label(text = '', icon = "ERROR")
-        row.label(text="Error | This exporter requires a full python installation")
-
 # LWO export helper functions
 # -----------------------------------------------------------------------------
 
@@ -564,16 +528,6 @@ class LwoExport(bpy.types.Operator, ExportHelper):
         data.write(struct.pack(">H", 6))
         data.write(struct.pack(">fH", spec, 0))
 
-        if material:
-            vcname = material.vcmenu
-            if vcname != "<none>":
-                data.write(b"VCOL")
-                data_tmp = io.BytesIO()
-                data_tmp.write(struct.pack(">fH4s", 1.0, 0, b"RGBA"))  # intensity, envelope, type
-                data_tmp.write(bytes(generate_nstring(vcname), 'UTF-8')) # name
-                data.write(struct.pack(">H", len(data_tmp.getvalue())))
-                data.write(data_tmp.getvalue())
-
         # Write smoothing information if required
         if self.option_smooth != 'NONE':
             data.write(b"SMAN")
@@ -715,42 +669,12 @@ def menu_func(self, context):
     self.layout.operator(LwoExport.bl_idname, text="Lightwave Object (.lwo)")
 
 def register():
-    bpy.app.handlers.depsgraph_update_post.append(sceneupdate_handler)
-
     bpy.utils.register_class(LwoExport)
-
     bpy.types.TOPBAR_MT_file_export.append(menu_func)
 
 def unregister():
-    bpy.app.handlers.depsgraph_update_post.remove(sceneupdate_handler)
-
     bpy.utils.register_class(LwoExport)
-
     bpy.types.TOPBAR_MT_file_export.remove(menu_func)
 
 if __name__ == "__main__":
   register()
-
-
-
-@persistent
-def sceneupdate_handler(dummy):
-
-    ob = bpy.context.active_object
-    if ob:
-        if ob.type == 'MESH':
-            mesh = bpy.context.active_object.data
-
-            itemlist = [("<none>", "<none>", "<none>")]
-            vcs = mesh.vertex_colors
-            for vc in vcs:
-                itemlist.append((vc.name, vc.name, "Vertex Color Map"))
-            bpy.types.Material.vcmenu = EnumProperty(
-                    items = itemlist,
-                    name = "Vertex Color Map",
-                    description = "LWO export: vertex color map for this material")
-
-    return {'RUNNING_MODAL'}
-
-
-
