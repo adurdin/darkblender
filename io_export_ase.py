@@ -1013,7 +1013,7 @@ class ExportAse( bpy.types.Operator, ExportHelper ):
             if self.option_apply_stack:
                 bpy.context.view_layer.objects.active = object
                 while (len(object.modifiers)):
-                    bpy.ops.object.modifier_apply(apply_as='DATA', modifier = object.modifiers[0].name)
+                    bpy.ops.object.modifier_apply(modifier = object.modifiers[0].name)
 
         # Separate by material
         bpy.ops.object.select_all( action = 'DESELECT' )
